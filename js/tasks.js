@@ -28,11 +28,3 @@ export async function completeTask(task) {
   }
 }
 
-export async function checkDateReset(tasks) {
-  const today = todayStr();
-  for (const task of tasks) {
-    if (task.autoResetDate && task.date && task.date <= today && !task.done) {
-      await updateTask(task.id, { date: null });
-    }
-  }
-}

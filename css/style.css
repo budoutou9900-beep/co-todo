@@ -110,13 +110,13 @@ button { font-family: inherit; }
 .task-list-scroll { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; min-height: 0; }
 .task-list-pad { padding: 0 16px 130px; }
 
-.task-row { display: flex; gap: 11px; margin-bottom: 9px; cursor: pointer; }
-.task-time-col { width: 38px; flex-shrink: 0; text-align: right; font-size: 10.5px; color: rgba(240, 240, 245, 0.28); padding-top: 11px; }
-.task-card { flex: 1; border-radius: 0 11px 11px 0; padding: 11px 13px; transition: all 0.3s ease; }
-.task-card-inner { display: flex; align-items: flex-start; gap: 10px; }
-.task-check { width: 22px; height: 22px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; transition: all 0.25s ease; }
-.task-title { font-size: 13.5px; font-weight: 500; transition: all 0.3s ease; }
-.task-meta-row { display: flex; align-items: center; gap: 7px; margin-top: 5px; flex-wrap: wrap; }
+.task-row { display: flex; margin-bottom: 7px; cursor: pointer; }
+.task-card { flex: 1; border-radius: 11px; padding: 9px 12px; transition: background 0.3s ease, border 0.3s ease; }
+.task-card-1line { display: flex; align-items: center; gap: 10px; }
+.task-check { width: 20px; height: 20px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; transition: background 0.25s ease, border 0.25s ease, box-shadow 0.25s ease; cursor: pointer; }
+.task-title-1line { flex: 1; min-width: 0; font-size: 13.5px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; transition: color 0.3s ease; }
+.task-proj-chip { font-size: 10px; font-weight: 500; padding: 2px 8px; border-radius: 99px; white-space: nowrap; flex-shrink: 0; max-width: 40%; overflow: hidden; text-overflow: ellipsis; }
+.task-repeat-icon { font-size: 11px; color: rgba(240, 240, 245, 0.35); flex-shrink: 0; }
 .task-time-range { font-size: 10.5px; color: rgba(240, 240, 245, 0.35); }
 .task-repeat { font-size: 9.5px; color: rgba(240, 240, 245, 0.3); }
 .place-tag { font-size: 10px; font-weight: 500; padding: 2px 8px; border-radius: 99px; white-space: nowrap; flex-shrink: 0; }
@@ -124,14 +124,13 @@ button { font-family: inherit; }
 .empty-state { text-align: center; padding: 50px 20px; color: rgba(240, 240, 245, 0.3); font-size: 13px; animation: fadein 0.3s; }
 
 /* filters / week view */
-.filter-row { padding: 0 16px 12px; flex-shrink: 0; display: flex; gap: 7px; overflow-x: auto; }
-.filter-chip { padding: 6px 14px; border-radius: 99px; font-size: 11.5px; white-space: nowrap; flex-shrink: 0; cursor: pointer; }
 .week-group { margin-bottom: 16px; animation: slidein 0.3s ease; }
 .week-group-label-row { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; padding-left: 2px; }
 .week-group-label { font-size: 11px; font-weight: 600; letter-spacing: 0.5px; }
 .today-badge { font-size: 9.5px; padding: 1px 7px; border-radius: 99px; background: rgba(149, 128, 255, 0.18); color: rgba(149, 128, 255, 0.85); font-weight: 600; }
 .week-group-card { background: var(--surface); border-radius: 13px; overflow: hidden; border: 1px solid var(--border-soft); }
-.week-task-row { padding: 11px 13px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid rgba(255, 255, 255, 0.04); cursor: pointer; }
+.week-task-row { padding: 10px 13px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid rgba(255, 255, 255, 0.04); cursor: pointer; }
+.week-task-proj { font-size: 10.5px; font-weight: 500; flex-shrink: 0; max-width: 35%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .week-task-row:last-child { border-bottom: none; }
 .week-task-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
 .week-task-title { flex: 1; font-size: 13px; }
@@ -184,11 +183,6 @@ button { font-family: inherit; }
 .ritual-greeting { font-size: 31px; font-weight: 300; line-height: 1.2; letter-spacing: -0.5px; }
 .ritual-sub { font-size: 15px; color: rgba(240, 240, 245, 0.42); margin-top: 9px; }
 .ritual-locations { padding: 24px 20px 0; display: flex; flex-direction: column; gap: 11px; }
-.loc-card { border-radius: 16px; padding: 14px 15px; display: flex; align-items: center; gap: 13px; cursor: pointer; transition: all 0.2s ease; }
-.loc-icon-wrap { width: 40px; height: 40px; border-radius: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.loc-name { font-size: 15px; font-weight: 500; }
-.loc-desc { font-size: 11.5px; color: rgba(240, 240, 245, 0.34); margin-top: 2px; }
-.loc-radio { width: 21px; height: 21px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
 .ritual-spacer { flex: 1; }
 .ritual-btn-wrap { padding: 16px 20px max(34px, env(safe-area-inset-bottom)); flex-shrink: 0; }
 .ritual-btn { border-radius: 16px; padding: 16px; text-align: center; cursor: pointer; transition: all 0.25s ease; }
@@ -204,8 +198,9 @@ button { font-family: inherit; }
 
 /* bottom sheet */
 .sheet-overlay { position: absolute; inset: 0; z-index: 70; display: flex; flex-direction: column; justify-content: flex-end; }
-.sheet-backdrop { position: absolute; inset: 0; background: rgba(0, 0, 0, 0.55); }
-.sheet { position: relative; background: var(--surface2); border-radius: 22px 22px 0 0; box-shadow: 0 -4px 40px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.06); max-height: 90%; overflow-y: auto; }
+/* バックドロップは下のリストが見えるよう薄めに */
+.sheet-backdrop { position: absolute; inset: 0; background: rgba(0, 0, 0, 0.25); }
+.sheet { position: relative; background: var(--surface2); border-radius: 22px 22px 0 0; box-shadow: 0 -4px 40px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.06); max-height: 55%; overflow-y: auto; }
 /* 開いた最初の1回だけスライドイン。フィールド操作による再描画では再生しない */
 .sheet-overlay.animate-in .sheet-backdrop { animation: fadein 0.25s ease; }
 .sheet-overlay.animate-in .sheet { animation: sheetup 0.3s cubic-bezier(.16, 1, .3, 1); }
@@ -225,17 +220,8 @@ button { font-family: inherit; }
 .field-box-val { font-size: 14px; font-weight: 500; }
 .field-tappable { background: var(--surface3); border-radius: 13px; padding: 13px 15px; margin-bottom: 9px; border: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
 .field-box-val-sm { font-size: 13.5px; color: rgba(240, 240, 245, 0.7); }
-.field-places { background: var(--surface3); border-radius: 13px; padding: 13px 15px; margin-bottom: 9px; border: 1px solid var(--border); }
-.field-places-label { font-size: 9.5px; font-weight: 500; color: rgba(240, 240, 245, 0.35); letter-spacing: 0.8px; margin-bottom: 11px; }
-.field-places-row { display: flex; gap: 8px; flex-wrap: wrap; }
-.place-pill { padding: 6px 14px; border-radius: 99px; font-size: 12px; cursor: pointer; }
 .field-proj-row { display: flex; align-items: center; gap: 8px; }
 .proj-dot { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
-.field-toggle-row { background: var(--surface3); border-radius: 13px; padding: 13px 15px; border: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
-.toggle-title { font-size: 13.5px; font-weight: 500; }
-.toggle-sub { font-size: 11px; color: rgba(240, 240, 245, 0.3); margin-top: 2px; }
-.toggle-track { width: 44px; height: 26px; border-radius: 99px; position: relative; flex-shrink: 0; transition: all 0.25s ease; }
-.toggle-thumb { position: absolute; top: 3px; width: 20px; height: 20px; border-radius: 50%; background: #fff; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3); transition: all 0.25s ease; }
 
 /* date picker popover (simple) */
 .date-input-native { background: transparent; border: none; outline: none; color: var(--text); font-size: 14px; font-weight: 500; font-family: inherit; width: 100%; }

@@ -1,10 +1,10 @@
 import { watchAuth, signIn, signOutUser } from "./auth.js";
 import { subscribeToTasks, subscribeToProjects, addTask, updateTask, addProject, updateProject } from "./db.js";
-import { completeTask, checkDateReset } from "./tasks.js";
-import { renderWeekStrip, renderWeekView, locToJp, jpToLoc, PLACE_LABELS } from "./calendar.js";
-import { renderTodayTimeline, repeatToLabel } from "./timeline.js";
+import { completeTask } from "./tasks.js";
+import { renderWeekStrip, renderWeekView } from "./calendar.js";
+import { renderTodayTimeline } from "./timeline.js";
 import { isConnected, connectCalendar, disconnectCalendar, fetchEvents, getLastFetchInfo } from "./calendar-sync.js";
-import { PLACE_COLORS, hexToRgb, todayStr, formatHeaderDate, startOfWeek, addDays, escapeHtml } from "./utils.js";
+import { hexToRgb, todayStr, formatHeaderDate, startOfWeek, addDays, escapeHtml } from "./utils.js";
 
 const state = {
   user: null,
@@ -13,8 +13,7 @@ const state = {
   view: "today",
   selectedDate: todayStr(),
   weekStart: startOfWeek(todayStr()),
-  filter: "全て",
-  ritual: { open: false, step: 1, location: null, picks: [] },
+  ritual: { open: false, picks: [] },
   sheet: { open: false, editingId: null, draft: null },
   toastMsg: null,
   unsubTasks: null,
@@ -71,9 +70,8 @@ $("#login-btn").addEventListener("click", () => signIn().catch((e) => alert("ロ
 $("#signout-btn").addEventListener("click", () => signOutUser());
 
 function startSubscriptions() {
-  state.unsubTasks = subscribeToTasks(async (tasks) => {
+  state.unsubTasks = subscribeToTasks((tasks) => {
     state.tasks = tasks;
-    await checkDateReset(tasks);
     requestRender();
   });
   state.unsubProjects = subscribeToProjects((projects) => {
@@ -102,7 +100,7 @@ $("#go-today-btn").addEventListener("click", () => {
 });
 
 function openRitualFromTab() {
-  state.ritual = { open: true, step: 1, location: null, picks: [] };
+  state.ritual = { open: true, picks: [] };
   renderRitual();
 }
 
@@ -174,7 +172,7 @@ function renderTodayScreen() {
           <div style="font-size:11.5px;color:rgba(240,240,245,0.35);padding-top:8px">残り${dayTasks.length - doneN}件</div>
         </div>
       </div>
-      <div class="week-strip" id="week-strip">${renderWeekStrip(state.tasks, state.selectedDate)}</div>
+      <div class="week-strip" id="week-strip">${renderWeekStrip(state.tasks, state.selectedDate, state.projects)}</div>
       <div class="timeline-label-row">
         <div class="timeline-label">タイムライン</div>
         <div style="display:flex;align-items:center;gap:10px">
@@ -183,29 +181,17 @@ function renderTodayScreen() {
         </div>
       </div>
       <div class="task-list-scroll scroll">
-        <div class="task-list-pad">${renderTodayTimeline(dayTasks, events)}</div>
+        <div class="task-list-pad">${renderTodayTimeline(dayTasks, events, state.projects)}</div>
       </div>
     </div>`;
 }
 
 function renderWeekScreen() {
-  const { html, total } = renderWeekView(state.tasks, state.weekStart, state.filter);
+  const { html, total } = renderWeekView(state.tasks, state.weekStart, state.projects);
   const weekEndDay = addDays(state.weekStart, 6);
   const rangeLabel = `${new Date(state.weekStart + "T00:00:00").getMonth() + 1}月 ${new Date(
     state.weekStart + "T00:00:00"
   ).getDate()}–${new Date(weekEndDay + "T00:00:00").getDate()}`;
-  const filters = ["全て", ...PLACE_LABELS];
-  const filterChips = filters
-    .map((f) => {
-      const on = state.filter === f;
-      const c = f === "全て" ? "#9580ff" : PLACE_COLORS[f];
-      const [r, g, b] = hexToRgb(c);
-      const style = on
-        ? `background:${c};color:#fff;font-weight:500`
-        : `background:rgba(${r},${g},${b},0.1);border:1px solid rgba(${r},${g},${b},0.22);color:rgba(${r},${g},${b},0.75)`;
-      return `<div class="filter-chip" data-filter="${f}" style="${style}">${f}</div>`;
-    })
-    .join("");
   return `
     <div class="screen">
       <div class="screen-header" style="padding-bottom:12px">
@@ -215,7 +201,6 @@ function renderWeekScreen() {
           <div style="font-size:11.5px;color:rgba(240,240,245,0.32)">${total}件</div>
         </div>
       </div>
-      <div class="filter-row scroll">${filterChips}</div>
       <div class="task-list-scroll scroll" style="padding:0 16px 120px">
         ${html || '<div class="empty-state">該当するタスクはありません</div>'}
       </div>
@@ -283,7 +268,7 @@ function renderProjectsScreen() {
         ${
           p.open
             ? `<div class="project-subtasks">${subRows || '<div class="project-stat-label">小タスクなし</div>'}
-              <div class="add-subtask-btn" data-add-subtask="${p.id}">＋ 小タスクを追加</div>
+              <div class="add-subtask-btn" data-add-subtask="${p.id}">＋ タスクを追加</div>
             </div>`
             : ""
         }
@@ -294,11 +279,11 @@ function renderProjectsScreen() {
     <div class="screen">
       <div class="screen-header" style="padding-bottom:14px">
         <div class="eyebrow muted">PROJECTS</div>
-        <div class="title-md">大タスク</div>
+        <div class="title-md">プロジェクト</div>
       </div>
       <div class="task-list-scroll scroll" style="padding:0 16px 120px">
         ${cards}
-        <div class="add-project-btn" id="add-project-btn">＋ 大タスクを追加</div>
+        <div class="add-project-btn" id="add-project-btn">＋ プロジェクトを追加</div>
       </div>
     </div>`;
 }
@@ -327,13 +312,6 @@ function wireScreenEvents() {
       });
     }
     el.addEventListener("click", () => openSheet({ taskId }));
-  });
-  // week: filter chips
-  $$(".filter-chip").forEach((el) => {
-    el.addEventListener("click", () => {
-      state.filter = el.dataset.filter;
-      renderScreen();
-    });
   });
   // week: タップで編集
   $$(".week-task-row").forEach((el) => {
@@ -439,23 +417,17 @@ async function refreshCalendar(dateStr, notify = false) {
 }
 
 async function openAddProjectPrompt() {
-  const title = prompt("大タスク名を入力してください");
+  const title = prompt("プロジェクト名を入力してください");
   if (!title || !title.trim()) return;
   const dueDate = prompt("締切日（YYYY-MM-DD、なければ空欄）") || null;
   const color = PROJECT_COLORS[state.projects.length % PROJECT_COLORS.length];
   await addProject({ title: title.trim(), color, dueDate: dueDate || null, open: true });
-  flash("大タスクを追加しました");
+  flash("プロジェクトを追加しました");
 }
 
-// ---------- ritual mode ----------
-const LOCATIONS = [
-  { name: "研究室", desc: "大学・図書館など", color: "#9580ff" },
-  { name: "家", desc: "自宅で集中作業", color: "#5b8aff" },
-  { name: "移動中", desc: "電車・バス・外出先", color: "#d4a558" },
-];
-
-// 儀式モードは「First」タブから openRitualFromTab() で起動する
-
+// ---------- First（簡略化儀式モード） ----------
+// 候補タスク（今日 or 日付なし、かつ未完了）から最大3つを選び、
+// 「今日」スタートで日付を今日に揃えるシンプル版。
 function closeRitual() {
   state.ritual.open = false;
   renderRitual();
@@ -467,88 +439,36 @@ function renderRitual() {
     c.innerHTML = "";
     return;
   }
-  const r = state.ritual;
-  c.innerHTML =
-    r.step === 1 ? renderRitualStep1() : renderRitualStep2();
+  c.innerHTML = renderRitualScreen();
   wireRitualEvents();
 }
 
-function renderRitualStep1() {
-  const locCards = LOCATIONS.map((loc) => {
-    const sel = state.ritual.location === loc.name;
-    const [r, g, b] = hexToRgb(loc.color);
-    const cardStyle = sel
-      ? `background:rgba(${r},${g},${b},0.1);border:1.5px solid rgba(${r},${g},${b},0.45);box-shadow:0 0 18px rgba(${r},${g},${b},0.12)`
-      : `background:var(--surface);border:1px solid rgba(255,255,255,0.07)`;
-    const radioStyle = sel
-      ? `background:${loc.color}`
-      : `border:1.5px solid rgba(255,255,255,0.15)`;
-    return `
-    <div class="loc-card" data-loc="${loc.name}" style="${cardStyle}">
-      <div class="loc-icon-wrap" style="background:rgba(${r},${g},${b},0.16)"><div style="width:9px;height:9px;border-radius:50%;background:${loc.color}"></div></div>
-      <div style="flex:1">
-        <div class="loc-name" style="${sel ? "color:#f0f0f5" : "color:rgba(240,240,245,0.6)"}">${loc.name}</div>
-        <div class="loc-desc">${loc.desc}</div>
-      </div>
-      <div class="loc-radio" style="${radioStyle}">${
-      sel
-        ? '<svg width="11" height="9" viewBox="0 0 11 9" fill="none"><path d="M1 4.5l3 3 6-6.5" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>'
-        : ""
-    }</div>
-    </div>`;
-  }).join("");
-  const hasLoc = !!state.ritual.location;
-  const btnStyle = hasLoc
-    ? "background:linear-gradient(135deg,#9a82ff,#7b5fff);box-shadow:0 0 24px rgba(149,128,255,0.35)"
-    : "background:rgba(149,128,255,0.2)";
-  return `
-    <div class="ritual-overlay">
-      <div class="ritual-glow"></div>
-      <div class="ritual-top-pad"></div>
-      <div class="ritual-header">
-        <div class="ritual-eyebrow">MORNING RITUAL</div>
-        <div class="ritual-close" id="ritual-close-btn"><svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M1.5 1.5l9 9M10.5 1.5l-9 9" stroke="rgba(240,240,245,0.55)" stroke-width="1.5" stroke-linecap="round"/></svg></div>
-      </div>
-      <div class="ritual-step">
-        <div class="ritual-greeting-block">
-          <div class="ritual-greeting">おはよう。</div>
-          <div class="ritual-sub">今日、どこにいる？</div>
-        </div>
-        <div class="ritual-locations">${locCards}</div>
-        <div class="ritual-spacer"></div>
-        <div class="ritual-btn-wrap">
-          <div class="ritual-btn" id="ritual-next-btn" style="${btnStyle}">
-            <div class="ritual-btn-title">次へ</div>
-          </div>
-        </div>
-      </div>
-    </div>`;
-}
-
-function renderRitualStep2() {
-  const loc = state.ritual.location;
+function renderRitualScreen() {
   const today = todayStr();
-  const candidates = state.tasks.filter((t) => locToJp(t.location) === loc && !t.done && (t.date === today || isRepeatDueToday(t) || !t.date));
+  const projectMap = new Map(state.projects.map((p) => [p.id, p]));
+  // 候補: 未完了 かつ (日付なし or 今日)
+  const candidates = state.tasks.filter(
+    (t) => !t.done && (t.date === today || !t.date)
+  );
   const picks = state.ritual.picks;
   const cards = candidates
     .map((t) => {
       const sel = picks.includes(t.id);
       const full = picks.length >= 3 && !sel;
-      const place = locToJp(t.location);
-      const [r, g, b] = hexToRgb(PLACE_COLORS[place] || PLACE_COLORS.研究室);
-      const meta = (repeatToLabel(t.repeat) ? `↻ ${repeatToLabel(t.repeat)}` : "単発") + (t.time ? " · " + t.time : "");
+      const project = t.projectId ? projectMap.get(t.projectId) : null;
+      const color = project?.color || "#9580ff";
+      const [r, g, b] = hexToRgb(color);
       return `
       <div class="cand-card" data-cand-id="${t.id}" style="border:1px solid ${sel ? `rgba(${r},${g},${b},0.5)` : "rgba(255,255,255,0.06)"};opacity:${full ? 0.45 : 1}">
-        <div class="cand-check" style="${sel ? `background:${PLACE_COLORS[place]}` : "border:1.5px solid rgba(255,255,255,0.2)"}">${
+        <div class="cand-check" style="${sel ? `background:${color}` : "border:1.5px solid rgba(255,255,255,0.2)"}">${
         sel
           ? '<svg width="11" height="9" viewBox="0 0 11 9" fill="none"><path d="M1 4.5l3 3 6-6.5" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>'
           : ""
       }</div>
         <div style="flex:1">
           <div class="cand-title">${escapeHtml(t.title)}</div>
-          <div class="cand-meta">${meta}</div>
+          ${project ? `<div class="cand-meta">${escapeHtml(project.title)}</div>` : ""}
         </div>
-        <span class="place-tag" style="${`background:rgba(${r},${g},${b},0.16);color:${PLACE_COLORS[place]}`}">${place}</span>
       </div>`;
     })
     .join("");
@@ -560,13 +480,13 @@ function renderRitualStep2() {
       <div class="ritual-glow"></div>
       <div class="ritual-top-pad"></div>
       <div class="ritual-header">
-        <div class="ritual-eyebrow">MORNING RITUAL</div>
+        <div class="ritual-eyebrow">FIRST</div>
         <div class="ritual-close" id="ritual-close-btn"><svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M1.5 1.5l9 9M10.5 1.5l-9 9" stroke="rgba(240,240,245,0.55)" stroke-width="1.5" stroke-linecap="round"/></svg></div>
       </div>
       <div class="ritual-step">
         <div class="ritual-greeting-block">
-          <div class="ritual-step2-title">${escapeHtml(loc)}での今日。</div>
-          <div class="ritual-sub" style="font-size:13px">最大3つ選んで始めよう</div>
+          <div class="ritual-greeting">おはよう。</div>
+          <div class="ritual-sub">今日始めるタスクを選ぼう</div>
         </div>
         <div class="ritual-candidates-scroll scroll">
           ${cards || '<div class="empty-state">候補タスクがありません</div>'}
@@ -582,30 +502,9 @@ function renderRitualStep2() {
     </div>`;
 }
 
-function isRepeatDueToday(t) {
-  return t.repeat && t.repeat.type !== "none" && t.date === todayStr();
-}
-
 function wireRitualEvents() {
   const closeBtn = $("#ritual-close-btn");
   if (closeBtn) closeBtn.addEventListener("click", closeRitual);
-
-  $$(".loc-card").forEach((el) => {
-    el.addEventListener("click", () => {
-      state.ritual.location = el.dataset.loc;
-      renderRitual();
-    });
-  });
-  const nextBtn = $("#ritual-next-btn");
-  if (nextBtn)
-    nextBtn.addEventListener("click", () => {
-      if (!state.ritual.location) {
-        flash("場所を選んでください");
-        return;
-      }
-      state.ritual.step = 2;
-      renderRitual();
-    });
 
   $$(".cand-card").forEach((el) => {
     el.addEventListener("click", () => {
@@ -646,19 +545,14 @@ const REPEAT_OPTIONS = [
   { type: "interval", label: "3日ごと", interval: 3 },
   { type: "interval", label: "毎日", interval: 1 },
 ];
-const TIMES = ["", "9:00", "10:00", "11:00", "14:00", "19:00"];
-
 $("#open-sheet-btn").addEventListener("click", () => openSheet());
 
 function defaultDraft() {
   return {
     title: "",
     date: state.selectedDate,
-    time: "",
     repeatIndex: 0,
-    places: [],
     projectIndex: 0,
-    reset: false,
   };
 }
 
@@ -675,14 +569,11 @@ function openSheet(opts = {}) {
       draft: {
         title: t.title,
         date: t.date || state.selectedDate,
-        time: t.time || "",
         repeatIndex: Math.max(
           0,
           REPEAT_OPTIONS.findIndex((r) => r.type === (t.repeat?.type || "none"))
         ),
-        places: t.location ? [locToJp(t.location)] : [],
         projectIndex: t.projectId ? state.projects.findIndex((p) => p.id === t.projectId) + 1 : 0,
-        reset: !!t.autoResetDate,
       },
     };
   } else {
@@ -694,8 +585,9 @@ function openSheet(opts = {}) {
     state.sheet = { open: true, editingId: null, draft };
   }
   renderSheet(true);
-  // タイトルにフォーカス（モバイルでもキーボードが開くよう少し遅延）
-  setTimeout(() => $("#draft-title-input")?.focus(), 50);
+  // ⑤ iOSではユーザータップの直接の同期実行内でfocus()を呼ばないとキーボードが
+  // 開かないため、setTimeoutを挟まず同期でフォーカスする
+  $("#draft-title-input")?.focus();
 }
 
 function closeSheet() {
@@ -711,19 +603,8 @@ function renderSheet(animate = false) {
   }
   const d = state.sheet.draft;
   const isEdit = !!state.sheet.editingId;
-  const placesPills = ["研究室", "家", "移動中"]
-    .map((name) => {
-      const on = d.places.includes(name);
-      const c = PLACE_COLORS[name];
-      const [r, g, b] = hexToRgb(c);
-      const style = on
-        ? `background:rgba(${r},${g},${b},0.18);border:1.5px solid rgba(${r},${g},${b},0.45);color:${c}`
-        : `background:rgba(${r},${g},${b},0.08);border:1px solid rgba(${r},${g},${b},0.18);color:rgba(${r},${g},${b},0.55)`;
-      return `<div class="place-pill" data-place="${name}" style="${style}">${name}</div>`;
-    })
-    .join("");
   const projNames = ["なし", ...state.projects.map((p) => p.title)];
-  const projColors = ["rgba(255,255,255,0.2)", ...state.projects.map((p) => p.color)];
+  const projColors = ["rgba(255,255,255,0.25)", ...state.projects.map((p) => p.color)];
   const titleOk = d.title && d.title.trim();
   c.innerHTML = `
     <div class="sheet-overlay${animate ? " animate-in" : ""}">
@@ -745,9 +626,12 @@ function renderSheet(animate = false) {
               <div class="field-box-label">日付</div>
               <input type="date" id="draft-date-input" class="date-input-native" value="${d.date || ""}" />
             </div>
-            <div class="field-box" id="draft-time-box">
-              <div class="field-box-label">時間</div>
-              <div class="field-box-val">${d.time || "時間未定"}</div>
+            <div class="field-box" id="draft-project-box">
+              <div class="field-box-label">プロジェクト</div>
+              <div class="field-proj-row">
+                <div class="proj-dot" style="background:${projColors[d.projectIndex]}"></div>
+                <div style="font-size:13.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(projNames[d.projectIndex])}</div>
+              </div>
             </div>
           </div>
           <div class="field-tappable" id="draft-repeat-box">
@@ -756,31 +640,6 @@ function renderSheet(animate = false) {
               <div class="field-box-val-sm">${REPEAT_OPTIONS[d.repeatIndex].label}</div>
             </div>
             <svg width="13" height="13" viewBox="0 0 12 12" fill="none"><path d="M2 6a4 4 0 014-4h2M10 6a4 4 0 01-4 4H4" stroke="rgba(149,128,255,0.6)" stroke-width="1.3" stroke-linecap="round"/><path d="M8 1l2 1.5-2 1.5M4 8L2 9.5 4 11" stroke="rgba(149,128,255,0.6)" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          </div>
-          <div class="field-places">
-            <div class="field-places-label">場所タグ</div>
-            <div class="field-places-row">${placesPills}</div>
-          </div>
-          <div class="field-tappable" id="draft-project-box">
-            <div>
-              <div class="field-box-label">大タスクに紐づけ</div>
-              <div class="field-proj-row">
-                <div class="proj-dot" style="background:${projColors[d.projectIndex]}"></div>
-                <div style="font-size:13.5px">${escapeHtml(projNames[d.projectIndex])}</div>
-              </div>
-            </div>
-            <svg width="13" height="13" viewBox="0 0 12 12" fill="none"><path d="M3 4.5l3 3 3-3" stroke="rgba(149,128,255,0.5)" stroke-width="1.3" stroke-linecap="round"/></svg>
-          </div>
-          <div class="field-toggle-row" id="draft-reset-toggle">
-            <div>
-              <div class="toggle-title">完了時リセット</div>
-              <div class="toggle-sub">完了後に次回へ自動移動</div>
-            </div>
-            <div class="toggle-track" style="background:${d.reset ? "#9580ff" : "rgba(255,255,255,0.12)"};box-shadow:${
-    d.reset ? "0 0 10px rgba(149,128,255,0.4)" : "none"
-  }">
-              <div class="toggle-thumb" style="${d.reset ? "right:3px" : "left:3px"}"></div>
-            </div>
           </div>
         </div>
       </div>
@@ -806,30 +665,13 @@ function wireSheetEvents() {
   $("#draft-date-input").addEventListener("change", (e) => {
     state.sheet.draft.date = e.target.value || null;
   });
-  $("#draft-time-box").addEventListener("click", () => {
-    const i = TIMES.indexOf(state.sheet.draft.time);
-    state.sheet.draft.time = TIMES[(i + 1) % TIMES.length];
-    renderSheet();
-  });
   $("#draft-repeat-box").addEventListener("click", () => {
     state.sheet.draft.repeatIndex = (state.sheet.draft.repeatIndex + 1) % REPEAT_OPTIONS.length;
     renderSheet();
   });
-  $$(".place-pill").forEach((el) => {
-    el.addEventListener("click", () => {
-      const name = el.dataset.place;
-      const places = state.sheet.draft.places;
-      state.sheet.draft.places = places.includes(name) ? [] : [name];
-      renderSheet();
-    });
-  });
   $("#draft-project-box").addEventListener("click", () => {
     const total = state.projects.length + 1;
     state.sheet.draft.projectIndex = (state.sheet.draft.projectIndex + 1) % total;
-    renderSheet();
-  });
-  $("#draft-reset-toggle").addEventListener("click", () => {
-    state.sheet.draft.reset = !state.sheet.draft.reset;
     renderSheet();
   });
   $("#sheet-save-btn").addEventListener("click", saveDraftTask);
@@ -843,22 +685,17 @@ async function commitDraft() {
     return false;
   }
   const repeatOpt = REPEAT_OPTIONS[d.repeatIndex];
-  const place = d.places[0] || null;
   const projIdx = d.projectIndex;
   const projectId = projIdx > 0 ? state.projects[projIdx - 1].id : null;
   const payload = {
     title: d.title.trim(),
     date: d.date || null,
-    time: d.time || null,
-    duration: 60,
-    location: place ? jpToLoc(place) : null,
     projectId,
     repeat: {
       type: repeatOpt.type,
       days: repeatOpt.days || [],
       interval: repeatOpt.interval || 0,
     },
-    autoResetDate: d.reset,
   };
   if (state.sheet.editingId) {
     await updateTask(state.sheet.editingId, payload);
@@ -875,7 +712,7 @@ async function saveDraftTask() {
 }
 
 // Enter キーで保存して連続入力。シートは閉じず、タイトルだけクリアして
-// 他のフィールド（日付・場所・プロジェクト・繰り返し・リセット）は維持する。
+// 他のフィールド（日付・プロジェクト・繰り返し）は維持する。
 async function saveDraftAndContinue() {
   if (state.sheet.editingId) {
     // 編集モード中はEnterで通常保存（次へではなく確定）
@@ -885,7 +722,7 @@ async function saveDraftAndContinue() {
   if (!(await commitDraft())) return;
   state.sheet.draft = { ...state.sheet.draft, title: "" };
   renderSheet(); // animate-in なしで再描画
-  setTimeout(() => $("#draft-title-input")?.focus(), 0);
+  $("#draft-title-input")?.focus();
 }
 
 // ---------- init ----------
