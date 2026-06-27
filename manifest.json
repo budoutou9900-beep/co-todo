@@ -1,6 +1,6 @@
 {
-  "name": "ひかり — タスク管理",
-  "short_name": "ひかり",
+  "name": "co-todo",
+  "short_name": "co-todo",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

@@ -158,11 +158,14 @@ button { font-family: inherit; }
 .subtask-check { width: 16px; height: 16px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
 .subtask-text { font-size: 12.5px; }
 .add-project-btn { background: var(--surface); border: 1px dashed rgba(255, 255, 255, 0.15); border-radius: 18px; padding: 16px; text-align: center; color: rgba(240, 240, 245, 0.4); font-size: 13px; cursor: pointer; }
+.add-subtask-btn { margin-top: 4px; padding: 7px 10px; border-radius: 9px; border: 1px dashed rgba(149, 128, 255, 0.25); color: rgba(149, 128, 255, 0.7); font-size: 11.5px; font-weight: 500; text-align: center; cursor: pointer; }
+.add-subtask-btn:active { background: rgba(149, 128, 255, 0.08); }
 
 /* tab bar */
 .tab-bar-wrap { flex-shrink: 0; position: relative; z-index: 30; }
 .tab-bar-fade { position: absolute; top: -30px; left: 0; right: 0; height: 30px; background: linear-gradient(transparent, var(--bg)); pointer-events: none; }
 .ritual-fab { position: absolute; right: 20px; top: -62px; width: 50px; height: 50px; border-radius: 50%; background: linear-gradient(140deg, #d9ad5c, #b87d22); display: flex; align-items: center; justify-content: center; box-shadow: 0 0 24px rgba(212, 165, 88, 0.5), 0 4px 14px rgba(0, 0, 0, 0.55); animation: floaty 4s ease-in-out infinite; cursor: pointer; }
+.add-fab { position: absolute; right: 20px; top: -62px; width: 50px; height: 50px; border-radius: 50%; background: linear-gradient(140deg, #9a82ff, #7b5fff); display: flex; align-items: center; justify-content: center; box-shadow: 0 0 24px rgba(149, 128, 255, 0.45), 0 4px 14px rgba(0, 0, 0, 0.55); animation: floaty 4s ease-in-out infinite; cursor: pointer; }
 .tab-bar { background: #121219; border-top: 1px solid var(--border); display: flex; padding: 10px 0 max(26px, env(safe-area-inset-bottom)); }
 .tab-item { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; cursor: pointer; }
 .tab-label { font-size: 9.5px; }

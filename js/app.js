@@ -85,16 +85,38 @@ function startSubscriptions() {
 // ---------- tab navigation ----------
 $$(".tab-item").forEach((el) => {
   el.addEventListener("click", () => {
+    if (el.dataset.action === "ritual") {
+      openRitualFromTab();
+      return;
+    }
     state.view = el.dataset.view;
     renderScreen();
     updateTabBar();
   });
 });
+// 中央の浮きボタン（今日）も view 切替
+$("#go-today-btn").addEventListener("click", () => {
+  state.view = "today";
+  renderScreen();
+  updateTabBar();
+});
+
+function openRitualFromTab() {
+  state.ritual = { open: true, step: 1, location: null, picks: [] };
+  renderRitual();
+}
 
 function updateTabBar() {
   const active = "#9580ff";
   const idle = "rgba(240,240,245,0.28)";
-  ["today", "week", "projects"].forEach((v) => {
+  // 中央の浮き丸ボタン（今日）の見た目を view==='today' でハイライト
+  const todayBtn = $("#go-today-btn");
+  if (todayBtn) {
+    const on = state.view === "today";
+    todayBtn.style.borderColor = on ? "rgba(149,128,255,0.55)" : "rgba(149,128,255,0.32)";
+    todayBtn.style.background = on ? "rgba(149,128,255,0.22)" : "rgba(149,128,255,0.12)";
+  }
+  ["week", "projects"].forEach((v) => {
     const isActive = state.view === v;
     $(`#tab-icon-${v}`).style.color = isActive ? active : idle;
     const label = $(`[data-label="${v}"]`);
@@ -258,7 +280,13 @@ function renderProjectsScreen() {
           </div>
           <div class="project-expand-hint">${p.open ? "閉じる ▲" : "開く ▼"}</div>
         </div>
-        ${p.open ? `<div class="project-subtasks">${subRows || '<div class="project-stat-label">小タスクなし</div>'}</div>` : ""}
+        ${
+          p.open
+            ? `<div class="project-subtasks">${subRows || '<div class="project-stat-label">小タスクなし</div>'}
+              <div class="add-subtask-btn" data-add-subtask="${p.id}">＋ 小タスクを追加</div>
+            </div>`
+            : ""
+        }
       </div>`;
     })
     .join("");
@@ -287,9 +315,18 @@ function wireScreenEvents() {
   // today: calendar 連携トグル
   const calToggle = $("#cal-toggle");
   if (calToggle) calToggle.addEventListener("click", onCalendarToggle);
-  // today: task toggle
+  // today: タスク行 = タップで編集、チェック領域だけ完了トグル
   $$(".task-row").forEach((el) => {
-    el.addEventListener("click", () => toggleTask(el.dataset.taskId));
+    const taskId = el.dataset.taskId;
+    if (!taskId) return; // カレンダー予定は読み取り専用
+    const check = el.querySelector(".task-check");
+    if (check) {
+      check.addEventListener("click", (e) => {
+        e.stopPropagation();
+        toggleTask(taskId);
+      });
+    }
+    el.addEventListener("click", () => openSheet({ taskId }));
   });
   // week: filter chips
   $$(".filter-chip").forEach((el) => {
@@ -298,9 +335,9 @@ function wireScreenEvents() {
       renderScreen();
     });
   });
-  // week: task toggle
+  // week: タップで編集
   $$(".week-task-row").forEach((el) => {
-    el.addEventListener("click", () => toggleTask(el.dataset.taskId));
+    el.addEventListener("click", () => openSheet({ taskId: el.dataset.taskId }));
   });
   // projects: toggle open
   $$("[data-toggle-project]").forEach((el) => {
@@ -311,11 +348,26 @@ function wireScreenEvents() {
       renderScreen();
     });
   });
-  // projects: subtask toggle
+  // projects: 小タスク = タップで編集、チェックだけ完了トグル
   $$(".subtask-row").forEach((el) => {
+    const taskId = el.dataset.taskId;
+    const check = el.querySelector(".subtask-check");
+    if (check) {
+      check.addEventListener("click", (e) => {
+        e.stopPropagation();
+        toggleTask(taskId);
+      });
+    }
     el.addEventListener("click", (e) => {
       e.stopPropagation();
-      toggleTask(el.dataset.taskId);
+      openSheet({ taskId });
+    });
+  });
+  // projects: 小タスクを追加
+  $$("[data-add-subtask]").forEach((el) => {
+    el.addEventListener("click", (e) => {
+      e.stopPropagation();
+      openSheet({ projectId: el.dataset.addSubtask });
     });
   });
   const addProjBtn = $("#add-project-btn");
@@ -402,10 +454,7 @@ const LOCATIONS = [
   { name: "移動中", desc: "電車・バス・外出先", color: "#d4a558" },
 ];
 
-$("#ritual-fab").addEventListener("click", () => {
-  state.ritual = { open: true, step: 1, location: null, picks: [] };
-  renderRitual();
-});
+// 儀式モードは「First」タブから openRitualFromTab() で起動する
 
 function closeRitual() {
   state.ritual.open = false;
@@ -613,9 +662,13 @@ function defaultDraft() {
   };
 }
 
-function openSheet(taskId = null) {
+// 引数: { taskId } で編集モード、{ projectId } で新規（プロジェクトをプリセット）。
+// 引数なし or 空オブジェクトで通常の新規追加。
+function openSheet(opts = {}) {
+  const { taskId, projectId } = opts;
   if (taskId) {
     const t = state.tasks.find((x) => x.id === taskId);
+    if (!t) return;
     state.sheet = {
       open: true,
       editingId: taskId,
@@ -623,20 +676,26 @@ function openSheet(taskId = null) {
         title: t.title,
         date: t.date || state.selectedDate,
         time: t.time || "",
-        repeatIndex: REPEAT_OPTIONS.findIndex(
-          (r) => r.type === (t.repeat?.type || "none")
-        ) === -1
-          ? 0
-          : REPEAT_OPTIONS.findIndex((r) => r.type === (t.repeat?.type || "none")),
+        repeatIndex: Math.max(
+          0,
+          REPEAT_OPTIONS.findIndex((r) => r.type === (t.repeat?.type || "none"))
+        ),
         places: t.location ? [locToJp(t.location)] : [],
         projectIndex: t.projectId ? state.projects.findIndex((p) => p.id === t.projectId) + 1 : 0,
         reset: !!t.autoResetDate,
       },
     };
   } else {
-    state.sheet = { open: true, editingId: null, draft: defaultDraft() };
+    const draft = defaultDraft();
+    if (projectId) {
+      const idx = state.projects.findIndex((p) => p.id === projectId);
+      if (idx >= 0) draft.projectIndex = idx + 1;
+    }
+    state.sheet = { open: true, editingId: null, draft };
   }
   renderSheet(true);
+  // タイトルにフォーカス（モバイルでもキーボードが開くよう少し遅延）
+  setTimeout(() => $("#draft-title-input")?.focus(), 50);
 }
 
 function closeSheet() {
@@ -679,7 +738,7 @@ function renderSheet(animate = false) {
         <div class="sheet-body">
           <div class="field-title">
             <div class="field-label">タイトル</div>
-            <input id="draft-title-input" class="field-input" placeholder="タスク名を入力" value="${escapeHtml(d.title)}" />
+            <input id="draft-title-input" class="field-input" placeholder="タスク名を入力" value="${escapeHtml(d.title)}" enterkeyhint="next" autocomplete="off" />
           </div>
           <div class="field-row2">
             <div class="field-box">
@@ -732,9 +791,17 @@ function renderSheet(animate = false) {
 function wireSheetEvents() {
   $("#sheet-backdrop").addEventListener("click", closeSheet);
   $("#sheet-cancel-btn").addEventListener("click", closeSheet);
-  $("#draft-title-input").addEventListener("input", (e) => {
+  const titleInput = $("#draft-title-input");
+  titleInput.addEventListener("input", (e) => {
     state.sheet.draft.title = e.target.value;
     $("#sheet-save-btn").style.color = e.target.value.trim() ? "#9580ff" : "rgba(149,128,255,0.4)";
+  });
+  titleInput.addEventListener("keydown", (e) => {
+    // IME変換中のEnter（confirm）は無視する
+    if (e.key !== "Enter" || e.isComposing || e.keyCode === 229) return;
+    e.preventDefault();
+    state.sheet.draft.title = e.target.value;
+    saveDraftAndContinue();
   });
   $("#draft-date-input").addEventListener("change", (e) => {
     state.sheet.draft.date = e.target.value || null;
@@ -768,11 +835,12 @@ function wireSheetEvents() {
   $("#sheet-save-btn").addEventListener("click", saveDraftTask);
 }
 
-async function saveDraftTask() {
+// draftをFirestoreに書き込む。成功すればtrueを返す。
+async function commitDraft() {
   const d = state.sheet.draft;
   if (!d.title || !d.title.trim()) {
     flash("タイトルを入力してください");
-    return;
+    return false;
   }
   const repeatOpt = REPEAT_OPTIONS[d.repeatIndex];
   const place = d.places[0] || null;
@@ -799,7 +867,25 @@ async function saveDraftTask() {
     await addTask(payload);
     flash("タスクを追加しました");
   }
-  closeSheet();
+  return true;
+}
+
+async function saveDraftTask() {
+  if (await commitDraft()) closeSheet();
+}
+
+// Enter キーで保存して連続入力。シートは閉じず、タイトルだけクリアして
+// 他のフィールド（日付・場所・プロジェクト・繰り返し・リセット）は維持する。
+async function saveDraftAndContinue() {
+  if (state.sheet.editingId) {
+    // 編集モード中はEnterで通常保存（次へではなく確定）
+    if (await commitDraft()) closeSheet();
+    return;
+  }
+  if (!(await commitDraft())) return;
+  state.sheet.draft = { ...state.sheet.draft, title: "" };
+  renderSheet(); // animate-in なしで再描画
+  setTimeout(() => $("#draft-title-input")?.focus(), 0);
 }
 
 // ---------- init ----------
