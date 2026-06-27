@@ -69,11 +69,11 @@ function startSubscriptions() {
   state.unsubTasks = subscribeToTasks(async (tasks) => {
     state.tasks = tasks;
     await checkDateReset(tasks);
-    renderScreen();
+    requestRender();
   });
   state.unsubProjects = subscribeToProjects((projects) => {
     state.projects = projects;
-    if (state.view === "projects") renderScreen();
+    requestRender();
   });
 }
 
@@ -99,12 +99,33 @@ function updateTabBar() {
 }
 
 // ---------- screen rendering ----------
+let lastRenderedHtml = null;
 function renderScreen() {
   const content = $("#screen-content");
-  if (state.view === "today") content.innerHTML = renderTodayScreen();
-  else if (state.view === "week") content.innerHTML = renderWeekScreen();
-  else content.innerHTML = renderProjectsScreen();
+  let html;
+  if (state.view === "today") html = renderTodayScreen();
+  else if (state.view === "week") html = renderWeekScreen();
+  else html = renderProjectsScreen();
+  // 同じHTMLなら DOM を作り直さない。Firestoreが同一データで再通知しても
+  // ノードが再生成されず、進行中のアニメ（checkdraw）が乱れない。
+  if (html === lastRenderedHtml) return;
+  lastRenderedHtml = html;
+  content.innerHTML = html;
   wireScreenEvents();
+}
+
+// Firestoreの onSnapshot は1操作で複数回（ローカル反映＋サーバー確定＋
+// 繰り返しタスクの追加など）短時間に連続発火する。そのたびに画面全体を
+// 作り直すと checkdraw アニメが途中で再起動して「ぶれる」ため、
+// requestAnimationFrame で1フレームに集約して1回だけ描画する。
+let renderQueued = false;
+function requestRender() {
+  if (renderQueued) return;
+  renderQueued = true;
+  requestAnimationFrame(() => {
+    renderQueued = false;
+    renderScreen();
+  });
 }
 
 function renderTodayScreen() {
@@ -545,7 +566,7 @@ function openSheet(taskId = null) {
   } else {
     state.sheet = { open: true, editingId: null, draft: defaultDraft() };
   }
-  renderSheet();
+  renderSheet(true);
 }
 
 function closeSheet() {
@@ -553,7 +574,7 @@ function closeSheet() {
   renderSheet();
 }
 
-function renderSheet() {
+function renderSheet(animate = false) {
   const c = $("#sheet-container");
   if (!state.sheet.open) {
     c.innerHTML = "";
@@ -576,7 +597,7 @@ function renderSheet() {
   const projColors = ["rgba(255,255,255,0.2)", ...state.projects.map((p) => p.color)];
   const titleOk = d.title && d.title.trim();
   c.innerHTML = `
-    <div class="sheet-overlay">
+    <div class="sheet-overlay${animate ? " animate-in" : ""}">
       <div class="sheet-backdrop" id="sheet-backdrop"></div>
       <div class="sheet scroll">
         <div class="sheet-handle-wrap"><div class="sheet-handle"></div></div>

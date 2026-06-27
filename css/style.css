@@ -165,7 +165,7 @@ button { font-family: inherit; }
 .tab-item { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; cursor: pointer; }
 .tab-label { font-size: 9.5px; }
 .tab-add-wrap { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; padding-top: 3px; }
-.tab-add-btn { width: 42px; height: 42px; margin-top: -21px; border-radius: 50%; background: rgba(149, 128, 255, 0.12); border: 1.5px solid rgba(149, 128, 255, 0.32); display: flex; align-items: center; justify-content: center; box-shadow: 0 0 16px rgba(149, 128, 255, 0.2); cursor: pointer; }
+.tab-add-btn { width: 42px; height: 42px; margin-top: -14px; border-radius: 50%; background: rgba(149, 128, 255, 0.12); border: 1.5px solid rgba(149, 128, 255, 0.32); display: flex; align-items: center; justify-content: center; box-shadow: 0 0 16px rgba(149, 128, 255, 0.2); cursor: pointer; }
 
 /* ritual overlay */
 .ritual-overlay { position: absolute; inset: 0; z-index: 60; background: var(--bg); display: flex; flex-direction: column; animation: ritualin 0.35s ease; overflow: hidden; }
@@ -199,8 +199,11 @@ button { font-family: inherit; }
 
 /* bottom sheet */
 .sheet-overlay { position: absolute; inset: 0; z-index: 70; display: flex; flex-direction: column; justify-content: flex-end; }
-.sheet-backdrop { position: absolute; inset: 0; background: rgba(0, 0, 0, 0.55); animation: fadein 0.25s ease; }
-.sheet { position: relative; background: var(--surface2); border-radius: 22px 22px 0 0; box-shadow: 0 -4px 40px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.06); animation: sheetup 0.3s cubic-bezier(.16, 1, .3, 1); max-height: 90%; overflow-y: auto; }
+.sheet-backdrop { position: absolute; inset: 0; background: rgba(0, 0, 0, 0.55); }
+.sheet { position: relative; background: var(--surface2); border-radius: 22px 22px 0 0; box-shadow: 0 -4px 40px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.06); max-height: 90%; overflow-y: auto; }
+/* 開いた最初の1回だけスライドイン。フィールド操作による再描画では再生しない */
+.sheet-overlay.animate-in .sheet-backdrop { animation: fadein 0.25s ease; }
+.sheet-overlay.animate-in .sheet { animation: sheetup 0.3s cubic-bezier(.16, 1, .3, 1); }
 .sheet-handle-wrap { display: flex; justify-content: center; padding: 10px 0 4px; }
 .sheet-handle { width: 38px; height: 4px; border-radius: 99px; background: rgba(255, 255, 255, 0.2); }
 .sheet-header { display: flex; justify-content: space-between; align-items: center; padding: 8px 20px 16px; }
