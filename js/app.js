@@ -3,7 +3,7 @@ import { subscribeToTasks, subscribeToProjects, addTask, updateTask, addProject,
 import { completeTask, checkDateReset } from "./tasks.js";
 import { renderWeekStrip, renderWeekView, locToJp, jpToLoc, PLACE_LABELS } from "./calendar.js";
 import { renderTodayTimeline, repeatToLabel } from "./timeline.js";
-import { isConnected, connectCalendar, disconnectCalendar, fetchEvents } from "./calendar-sync.js";
+import { isConnected, connectCalendar, disconnectCalendar, fetchEvents, getLastFetchInfo } from "./calendar-sync.js";
 import { PLACE_COLORS, hexToRgb, todayStr, formatHeaderDate, startOfWeek, addDays, escapeHtml } from "./utils.js";
 
 const state = {
@@ -372,7 +372,14 @@ async function refreshCalendar(dateStr, notify = false) {
     state.calendarEvents = events;
     state.calendarDate = dateStr;
     if (state.view === "today") renderScreen();
-    if (notify) flash(events.length ? `予定 ${events.length} 件を取得` : "この日の予定はありません");
+    if (notify) {
+      const info = getLastFetchInfo();
+      flash(
+        events.length
+          ? `予定 ${events.length} 件（${info.calendars}カレンダー）`
+          : `この日の予定なし（${info.calendars}カレンダー確認）`
+      );
+    }
   } catch (e) {
     console.error("カレンダー取得エラー", e);
     flash("予定取得エラー: " + (e?.message || e?.error || e));

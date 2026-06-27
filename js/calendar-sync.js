@@ -104,16 +104,36 @@ async function fetchEventsForCalendar(calId, timeMin, timeMax) {
   return mapEvents(await authedGet(url));
 }
 
+// 直近の取得状況（診断用）。{ calendars, events, failures }
+let lastFetchInfo = { calendars: 0, events: 0, failures: 0 };
+export function getLastFetchInfo() {
+  return lastFetchInfo;
+}
+
 // 指定日（"YYYY-MM-DD"）の予定を全カレンダーから取得して統合
 export async function fetchEvents(dateStr) {
   const timeMin = new Date(dateStr + "T00:00:00").toISOString();
   const timeMax = new Date(dateStr + "T23:59:59").toISOString();
   const calIds = await fetchCalendarIds();
-  // カレンダーごとに並列取得。アクセス不可なカレンダーは無視する。
-  const results = await Promise.all(
-    calIds.map((id) => fetchEventsForCalendar(id, timeMin, timeMax).catch(() => []))
+  // カレンダーごとに並列取得。アクセス不可なカレンダーは個別にスキップ。
+  const settled = await Promise.allSettled(
+    calIds.map((id) => fetchEventsForCalendar(id, timeMin, timeMax))
   );
-  const all = results.flat();
+  const all = [];
+  let failures = 0;
+  let lastErr = null;
+  for (const s of settled) {
+    if (s.status === "fulfilled") all.push(...s.value);
+    else {
+      failures++;
+      lastErr = s.reason;
+    }
+  }
+  lastFetchInfo = { calendars: calIds.length, events: all.length, failures };
+  // すべてのカレンダー取得が失敗した場合はエラーとして扱う
+  if (all.length === 0 && failures > 0 && failures === calIds.length) {
+    throw new Error(`全カレンダー取得失敗(${calIds.length}件): ${lastErr?.message || lastErr}`);
+  }
   all.sort((a, b) => {
     const ka = a.allDay ? "" : a.start;
     const kb = b.allDay ? "" : b.start;
