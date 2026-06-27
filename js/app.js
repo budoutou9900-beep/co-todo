@@ -42,19 +42,25 @@ function renderToast() {
 }
 
 // ---------- auth ----------
-watchAuth(async (user) => {
-  state.user = user;
-  if (user) {
-    $("#login-screen").style.display = "none";
-    $("#app-screen").style.display = "flex";
-    startSubscriptions();
-  } else {
-    $("#login-screen").style.display = "flex";
-    $("#app-screen").style.display = "none";
-    if (state.unsubTasks) state.unsubTasks();
-    if (state.unsubProjects) state.unsubProjects();
+watchAuth(
+  async (user) => {
+    state.user = user;
+    if (user) {
+      $("#login-screen").style.display = "none";
+      $("#app-screen").style.display = "flex";
+      startSubscriptions();
+    } else {
+      $("#login-screen").style.display = "flex";
+      $("#app-screen").style.display = "none";
+      if (state.unsubTasks) state.unsubTasks();
+      if (state.unsubProjects) state.unsubProjects();
+    }
+  },
+  (err) => {
+    const el = $("#login-error");
+    if (el) el.textContent = `ログインエラー: ${err.code || ""} ${err.message || err}`;
   }
-});
+);
 
 $("#login-btn").addEventListener("click", () => signIn().catch((e) => alert("ログインに失敗しました: " + e.message)));
 $("#signout-btn").addEventListener("click", () => signOutUser());

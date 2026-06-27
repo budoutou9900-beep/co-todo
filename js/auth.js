@@ -19,9 +19,10 @@ export async function signOutUser() {
   await firebaseSignOut(auth);
 }
 
-export function watchAuth(callback) {
+export function watchAuth(callback, onError) {
   getRedirectResult(auth).catch((err) => {
     console.error("ログインに失敗しました", err);
+    if (onError) onError(err);
   });
   return onAuthStateChanged(auth, (user) => callback(user));
 }
