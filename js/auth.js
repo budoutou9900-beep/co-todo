@@ -1,14 +1,18 @@
 import {
   GoogleAuthProvider,
-  signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   signOut as firebaseSignOut,
   onAuthStateChanged,
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { auth } from "./firebase-config.js";
 
+// モバイルSafari/PWA(standalone)では signInWithPopup が
+// Google の "disallowed_useragent" 判定でブロックされるため、
+// リダイレクト方式に統一する。
 export async function signIn() {
   const provider = new GoogleAuthProvider();
-  await signInWithPopup(auth, provider);
+  await signInWithRedirect(auth, provider);
 }
 
 export async function signOutUser() {
@@ -16,5 +20,8 @@ export async function signOutUser() {
 }
 
 export function watchAuth(callback) {
+  getRedirectResult(auth).catch((err) => {
+    console.error("ログインに失敗しました", err);
+  });
   return onAuthStateChanged(auth, (user) => callback(user));
 }
