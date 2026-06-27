@@ -2,7 +2,8 @@ import { watchAuth, signIn, signOutUser } from "./auth.js";
 import { subscribeToTasks, subscribeToProjects, addTask, updateTask, addProject, updateProject } from "./db.js";
 import { completeTask, checkDateReset } from "./tasks.js";
 import { renderWeekStrip, renderWeekView, locToJp, jpToLoc, PLACE_LABELS } from "./calendar.js";
-import { renderTodayTaskList, repeatToLabel } from "./timeline.js";
+import { renderTodayTimeline, repeatToLabel } from "./timeline.js";
+import { isConnected, connectCalendar, disconnectCalendar, fetchEvents } from "./calendar-sync.js";
 import { PLACE_COLORS, hexToRgb, todayStr, formatHeaderDate, startOfWeek, addDays, escapeHtml } from "./utils.js";
 
 const state = {
@@ -18,6 +19,9 @@ const state = {
   toastMsg: null,
   unsubTasks: null,
   unsubProjects: null,
+  calendarConnected: isConnected(),
+  calendarEvents: [],
+  calendarDate: null,
 };
 
 const PROJECT_COLORS = ["#9580ff", "#5b8aff", "#d4a558", "#4ecf8a", "#ff7c5c"];
@@ -49,6 +53,7 @@ watchAuth(
       $("#login-screen").style.display = "none";
       $("#app-screen").style.display = "flex";
       startSubscriptions();
+      if (state.calendarConnected) waitForGisThenRefresh();
     } else {
       $("#login-screen").style.display = "flex";
       $("#app-screen").style.display = "none";
@@ -131,6 +136,11 @@ function requestRender() {
 function renderTodayScreen() {
   const dayTasks = state.tasks.filter((t) => t.date === state.selectedDate);
   const doneN = dayTasks.filter((t) => t.done).length;
+  // カレンダー予定は選択日のものだけ表示（取得済みの日付が一致するとき）
+  const events = state.calendarConnected && state.calendarDate === state.selectedDate ? state.calendarEvents : [];
+  const calChip = state.calendarConnected
+    ? `<div id="cal-toggle" class="cal-chip on">📅 カレンダー</div>`
+    : `<div id="cal-toggle" class="cal-chip">📅 連携</div>`;
   return `
     <div class="screen">
       <div class="screen-header">
@@ -145,10 +155,13 @@ function renderTodayScreen() {
       <div class="week-strip" id="week-strip">${renderWeekStrip(state.tasks, state.selectedDate)}</div>
       <div class="timeline-label-row">
         <div class="timeline-label">タイムライン</div>
-        <div class="timeline-done">${doneN} / ${dayTasks.length} 完了</div>
+        <div style="display:flex;align-items:center;gap:10px">
+          ${calChip}
+          <div class="timeline-done">${doneN} / ${dayTasks.length} 完了</div>
+        </div>
       </div>
       <div class="task-list-scroll scroll">
-        <div class="task-list-pad">${renderTodayTaskList(dayTasks)}</div>
+        <div class="task-list-pad">${renderTodayTimeline(dayTasks, events)}</div>
       </div>
     </div>`;
 }
@@ -268,8 +281,12 @@ function wireScreenEvents() {
     el.addEventListener("click", () => {
       state.selectedDate = el.dataset.date;
       renderScreen();
+      if (state.calendarConnected) refreshCalendar(state.selectedDate);
     });
   });
+  // today: calendar 連携トグル
+  const calToggle = $("#cal-toggle");
+  if (calToggle) calToggle.addEventListener("click", onCalendarToggle);
   // today: task toggle
   $$(".task-row").forEach((el) => {
     el.addEventListener("click", () => toggleTask(el.dataset.taskId));
@@ -313,6 +330,50 @@ async function toggleTask(taskId) {
     flash("完了 — おつかれさま ✦");
   } else {
     await updateTask(taskId, { done: false });
+  }
+}
+
+// ---------- Google カレンダー連携 ----------
+async function onCalendarToggle() {
+  if (state.calendarConnected) {
+    disconnectCalendar();
+    state.calendarConnected = false;
+    state.calendarEvents = [];
+    state.calendarDate = null;
+    renderScreen();
+    flash("カレンダー連携を解除しました");
+    return;
+  }
+  try {
+    await connectCalendar();
+    state.calendarConnected = true;
+    flash("カレンダーを連携しました");
+    await refreshCalendar(state.selectedDate);
+  } catch (e) {
+    flash("カレンダー連携に失敗しました");
+  }
+}
+
+// GISスクリプト(accounts.google.com/gsi/client)は async 読み込みのため、
+// ログイン直後の自動取得では読み込み完了を最大5秒待ってから silent 取得する。
+function waitForGisThenRefresh(attempt = 0) {
+  if (typeof google !== "undefined" && google.accounts?.oauth2) {
+    refreshCalendar(state.selectedDate);
+    return;
+  }
+  if (attempt >= 25) return; // 約5秒で諦める（次のユーザー操作で再試行される）
+  setTimeout(() => waitForGisThenRefresh(attempt + 1), 200);
+}
+
+async function refreshCalendar(dateStr) {
+  if (!state.calendarConnected) return;
+  try {
+    const events = await fetchEvents(dateStr);
+    state.calendarEvents = events;
+    state.calendarDate = dateStr;
+    if (state.view === "today") renderScreen();
+  } catch (e) {
+    console.error("カレンダー取得エラー", e);
   }
 }
 

@@ -1,4 +1,4 @@
-const CACHE = "task-app-v2";
+const CACHE = "task-app-v3";
 const ASSETS = [
   "./",
   "./index.html",
@@ -8,7 +8,9 @@ const ASSETS = [
   "./js/db.js",
   "./js/tasks.js",
   "./js/calendar.js",
+  "./js/calendar-sync.js",
   "./js/timeline.js",
+  "./js/utils.js",
   "./js/app.js",
   "./manifest.json",
 ];
