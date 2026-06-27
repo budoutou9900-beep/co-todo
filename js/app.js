@@ -347,10 +347,10 @@ async function onCalendarToggle() {
   try {
     await connectCalendar();
     state.calendarConnected = true;
-    flash("カレンダーを連携しました");
-    await refreshCalendar(state.selectedDate);
+    renderScreen();
+    await refreshCalendar(state.selectedDate, true);
   } catch (e) {
-    flash("カレンダー連携に失敗しました");
+    flash("連携失敗: " + (e?.message || e?.error || e));
   }
 }
 
@@ -365,15 +365,17 @@ function waitForGisThenRefresh(attempt = 0) {
   setTimeout(() => waitForGisThenRefresh(attempt + 1), 200);
 }
 
-async function refreshCalendar(dateStr) {
+async function refreshCalendar(dateStr, notify = false) {
   if (!state.calendarConnected) return;
   try {
     const events = await fetchEvents(dateStr);
     state.calendarEvents = events;
     state.calendarDate = dateStr;
     if (state.view === "today") renderScreen();
+    if (notify) flash(events.length ? `予定 ${events.length} 件を取得` : "この日の予定はありません");
   } catch (e) {
     console.error("カレンダー取得エラー", e);
+    flash("予定取得エラー: " + (e?.message || e?.error || e));
   }
 }
 
