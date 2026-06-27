@@ -84,10 +84,6 @@ function startSubscriptions() {
 // ---------- tab navigation ----------
 $$(".tab-item").forEach((el) => {
   el.addEventListener("click", () => {
-    if (el.dataset.action === "ritual") {
-      openRitualFromTab();
-      return;
-    }
     state.view = el.dataset.view;
     renderScreen();
     updateTabBar();
@@ -166,7 +162,9 @@ function renderTodayScreen() {
             <div class="eyebrow">TODAY</div>
             <div class="title-lg">${formatHeaderDate(state.selectedDate)}</div>
           </div>
-          <div style="font-size:11.5px;color:rgba(240,240,245,0.35);padding-top:8px">残り${dayTasks.length - doneN}件</div>
+          <div id="first-btn" class="first-btn" title="First（今日始めるタスクを選ぶ）">
+            <svg width="20" height="20" viewBox="0 0 22 22" fill="none"><circle cx="11" cy="11" r="3.2" stroke="#9580ff" stroke-width="1.6"/><path d="M11 1.5v2M11 18.5v2M1.5 11h2M18.5 11h2M4.22 4.22l1.41 1.41M16.37 16.37l1.41 1.41M4.22 17.78l1.41-1.41M16.37 5.63l1.41-1.41" stroke="#9580ff" stroke-width="1.6" stroke-linecap="round"/></svg>
+          </div>
         </div>
       </div>
       <div class="week-strip" id="week-strip">${renderWeekStrip(state.tasks, state.selectedDate, state.projects)}</div>
@@ -297,6 +295,9 @@ function wireScreenEvents() {
   // today: calendar 連携トグル
   const calToggle = $("#cal-toggle");
   if (calToggle) calToggle.addEventListener("click", onCalendarToggle);
+  // today: First ボタン（朝の儀式モード起動）
+  const firstBtn = $("#first-btn");
+  if (firstBtn) firstBtn.addEventListener("click", openRitualFromTab);
   // today: タスク行 = タップで編集、チェック領域だけ完了トグル
   $$(".task-row").forEach((el) => {
     const taskId = el.dataset.taskId;

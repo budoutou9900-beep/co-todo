@@ -58,7 +58,8 @@ export function renderWeekView(tasks, weekStart, projects = []) {
   let total = 0;
   let html = "";
   for (const dateStr of dayOrder) {
-    const dayTasks = tasks.filter((t) => t.date === dateStr);
+    // 今週は「何が未完了か」が重要なので、完了済みは除外する
+    const dayTasks = tasks.filter((t) => t.date === dateStr && !t.done);
     if (dayTasks.length === 0) continue;
     total += dayTasks.length;
     const isToday = dateStr === today;
