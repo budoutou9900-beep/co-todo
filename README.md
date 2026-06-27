@@ -31,12 +31,46 @@ python -m http.server 8080
 # → http://localhost:8080 を開く
 ```
 
-### 5. GitHub Pages にデプロイ
+> `authDomain` を `.web.app` にしているため、ローカルでも Google ログインは
+> 本番の認証ドメイン経由で処理されます。`localhost` は Firebase Authentication の
+> 「承認済みドメイン」に既定で含まれているため、そのままログインできます。
 
-1. GitHubにリポジトリを作成し、このディレクトリの内容をプッシュ
-2. リポジトリの Settings → Pages → Branch: `main` / `root` を設定
-3. `https://{ユーザー名}.github.io/{リポジトリ名}/` でアクセス可能
-4. スマホのSafari/ChromeでそのURLを開き「ホーム画面に追加」するとPWAとして動作します
+### 5. Firebase Hosting にデプロイ
+
+> **なぜ GitHub Pages ではなく Firebase Hosting か**
+> GitHub Pages（`github.io`）にデプロイすると、アプリのドメインと認証ドメイン
+> （`firebaseapp.com`）が別になり、iOS Safari のクロスサイトトラッキング防止(ITP)
+> によってログイン後に認証状態が引き継がれず「ログインループ」が発生します。
+> Firebase Hosting を使い `authDomain` をホスティングのドメインに揃えることで、
+> 認証フローが同一ドメイン内で完結し、この問題を回避できます。
+
+1. Node.js（LTS）をインストール後、Firebase CLI を入れる
+   ```bash
+   npm install -g firebase-tools
+   ```
+2. ログイン（初回のみ・ブラウザが開く）
+   ```bash
+   firebase login
+   ```
+3. このディレクトリでデプロイ（`.firebaserc` / `firebase.json` は同梱済み）
+   ```bash
+   firebase deploy --only hosting
+   ```
+4. デプロイ完了後に表示される `https://{プロジェクトID}.web.app` でアクセス可能
+5. スマホの Safari/Chrome でそのURLを開き「ホーム画面に追加」すると PWA として動作します
+
+#### 認証ドメインの設定（重要）
+
+`authDomain` をホスティングの `.web.app` ドメインに変更しているため、
+Google Cloud Console 側でリダイレクト先の登録が必要です。
+
+1. https://console.cloud.google.com/apis/credentials （対象プロジェクトを選択）
+2. 「OAuth 2.0 クライアント ID」→「Web client (auto created by Google Service)」を開く
+3. **承認済みの JavaScript 生成元** に追加: `https://{プロジェクトID}.web.app`
+4. **承認済みのリダイレクト URI** に追加: `https://{プロジェクトID}.web.app/__/auth/handler`
+5. 保存（反映に数分かかることがあります）
+
+> このプロジェクトの本番URL: **https://co-todo-5660c.web.app**
 
 ## ファイル構成
 
