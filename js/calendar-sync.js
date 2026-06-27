@@ -74,25 +74,52 @@ export function disconnectCalendar() {
 }
 
 // 指定日（"YYYY-MM-DD"）の予定一覧を取得
-export async function fetchEvents(dateStr) {
-  const token = await getToken();
-  const timeMin = new Date(dateStr + "T00:00:00").toISOString();
-  const timeMax = new Date(dateStr + "T23:59:59").toISOString();
+// 認証付きGET。401（トークン失効）なら1度だけ silent 再取得して再試行する。
+async function authedGet(url) {
+  let token = await getToken();
+  let res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+  if (res.status === 401) {
+    accessToken = null;
+    token = await getToken();
+    res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+  }
+  if (!res.ok) throw new Error("Google API エラー (" + res.status + ")");
+  return res.json();
+}
+
+// ユーザーが閲覧可能な全カレンダーのIDを取得（primaryだけでなく
+// 「授業」などの追加カレンダーや購読カレンダーも含む）
+async function fetchCalendarIds() {
+  const data = await authedGet(
+    "https://www.googleapis.com/calendar/v3/users/me/calendarList?minAccessRole=reader&maxResults=250"
+  );
+  return (data.items || []).map((c) => c.id);
+}
+
+async function fetchEventsForCalendar(calId, timeMin, timeMax) {
   const url =
-    "https://www.googleapis.com/calendar/v3/calendars/primary/events" +
+    `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calId)}/events` +
     `?timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}` +
     "&singleEvents=true&orderBy=startTime&maxResults=50";
-  const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
-  if (res.status === 401) {
-    // トークン失効 → 1度だけ silent 再取得して再試行
-    accessToken = null;
-    const fresh = await getToken();
-    const retry = await fetch(url, { headers: { Authorization: `Bearer ${fresh}` } });
-    if (!retry.ok) throw new Error("カレンダー取得に失敗しました (" + retry.status + ")");
-    return mapEvents(await retry.json());
-  }
-  if (!res.ok) throw new Error("カレンダー取得に失敗しました (" + res.status + ")");
-  return mapEvents(await res.json());
+  return mapEvents(await authedGet(url));
+}
+
+// 指定日（"YYYY-MM-DD"）の予定を全カレンダーから取得して統合
+export async function fetchEvents(dateStr) {
+  const timeMin = new Date(dateStr + "T00:00:00").toISOString();
+  const timeMax = new Date(dateStr + "T23:59:59").toISOString();
+  const calIds = await fetchCalendarIds();
+  // カレンダーごとに並列取得。アクセス不可なカレンダーは無視する。
+  const results = await Promise.all(
+    calIds.map((id) => fetchEventsForCalendar(id, timeMin, timeMax).catch(() => []))
+  );
+  const all = results.flat();
+  all.sort((a, b) => {
+    const ka = a.allDay ? "" : a.start;
+    const kb = b.allDay ? "" : b.start;
+    return ka < kb ? -1 : ka > kb ? 1 : 0;
+  });
+  return all;
 }
 
 function mapEvents(data) {
