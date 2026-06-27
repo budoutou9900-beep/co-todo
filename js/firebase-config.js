@@ -11,7 +11,10 @@ import { getAuth } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-aut
 
 const firebaseConfig = {
   apiKey: "AIzaSyBjT81eGVLFWWlgovF-QfjOPJ19uWvFKOw",
-  authDomain: "co-todo-5660c.firebaseapp.com",
+  // Firebase Hostingのドメインをそのまま使う。これにより認証フローが
+  // 完全に同一ドメイン内で完結し、Safari等のクロスサイトトラッキング
+  // 防止(ITP)によるリダイレクト断絶を回避できる。
+  authDomain: "co-todo-5660c.web.app",
   projectId: "co-todo-5660c",
   storageBucket: "co-todo-5660c.firebasestorage.app",
   messagingSenderId: "827266372140",
