@@ -86,11 +86,10 @@ export function renderTodayTimeline(tasks, calEvents = [], projects = []) {
     return '<div class="empty-state">この日の予定はありません</div>';
   }
   const projectMap = new Map(projects.map((p) => [p.id, p]));
-  const sortedTasks = [...tasks].sort((a, b) => {
-    const ta = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0;
-    const tb = b.createdAt?.toMillis ? b.createdAt.toMillis() : 0;
-    return ta - tb;
-  });
+  // 並び順: order が明示されていればそれ、無ければ createdAt（古いものほど先）
+  const keyOf = (t) =>
+    typeof t.order === "number" ? t.order : t.createdAt?.toMillis ? t.createdAt.toMillis() : 0;
+  const sortedTasks = [...tasks].sort((a, b) => keyOf(a) - keyOf(b));
   const cal = [...calEvents].sort((a, b) => {
     if (a.allDay !== b.allDay) return a.allDay ? -1 : 1;
     return a.start < b.start ? -1 : a.start > b.start ? 1 : 0;

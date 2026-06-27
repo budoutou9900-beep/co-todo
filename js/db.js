@@ -41,6 +41,9 @@ export async function addTask(taskData) {
   return addDoc(tasksRef(), {
     ...taskData,
     done: false,
+    // 並び替え用。新規は末尾に来るように現在時刻のms。手動並び替え時はこの値を
+    // 隣接2タスクの中間値に書き換える（drag.js）。
+    order: taskData.order ?? Date.now(),
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });

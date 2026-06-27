@@ -3,6 +3,7 @@ import { subscribeToTasks, subscribeToProjects, addTask, updateTask, addProject,
 import { completeTask } from "./tasks.js";
 import { renderWeekStrip, renderWeekView } from "./calendar.js";
 import { renderTodayTimeline } from "./timeline.js";
+import { attachDragSort, detachDragSort } from "./drag.js";
 import { isConnected, connectCalendar, disconnectCalendar, fetchEvents, getLastFetchInfo } from "./calendar-sync.js";
 import { hexToRgb, todayStr, formatHeaderDate, startOfWeek, addDays, escapeHtml } from "./utils.js";
 
@@ -92,13 +93,6 @@ $$(".tab-item").forEach((el) => {
     updateTabBar();
   });
 });
-// 中央の浮きボタン（今日）も view 切替
-$("#go-today-btn").addEventListener("click", () => {
-  state.view = "today";
-  renderScreen();
-  updateTabBar();
-});
-
 function openRitualFromTab() {
   state.ritual = { open: true, picks: [] };
   renderRitual();
@@ -107,14 +101,7 @@ function openRitualFromTab() {
 function updateTabBar() {
   const active = "#9580ff";
   const idle = "rgba(240,240,245,0.28)";
-  // 中央の浮き丸ボタン（今日）の見た目を view==='today' でハイライト
-  const todayBtn = $("#go-today-btn");
-  if (todayBtn) {
-    const on = state.view === "today";
-    todayBtn.style.borderColor = on ? "rgba(149,128,255,0.55)" : "rgba(149,128,255,0.32)";
-    todayBtn.style.background = on ? "rgba(149,128,255,0.22)" : "rgba(149,128,255,0.12)";
-  }
-  ["week", "projects"].forEach((v) => {
+  ["today", "week", "projects"].forEach((v) => {
     const isActive = state.view === v;
     $(`#tab-icon-${v}`).style.color = isActive ? active : idle;
     const label = $(`[data-label="${v}"]`);
@@ -125,6 +112,7 @@ function updateTabBar() {
 
 // ---------- screen rendering ----------
 let lastRenderedHtml = null;
+let lastRenderedView = null;
 function renderScreen() {
   const content = $("#screen-content");
   let html;
@@ -134,9 +122,18 @@ function renderScreen() {
   // 同じHTMLなら DOM を作り直さない。Firestoreが同一データで再通知しても
   // ノードが再生成されず、進行中のアニメ（checkdraw）が乱れない。
   if (html === lastRenderedHtml) return;
+  // 同じビュー内の再描画では、ユーザーがスクロールしていた位置を保持する。
+  // ビューを切り替えたときは先頭に戻す。
+  const keepScroll = lastRenderedView === state.view;
+  const prevScroll = keepScroll ? $(".task-list-scroll")?.scrollTop ?? 0 : 0;
   lastRenderedHtml = html;
+  lastRenderedView = state.view;
   content.innerHTML = html;
   wireScreenEvents();
+  if (keepScroll) {
+    const sc = $(".task-list-scroll");
+    if (sc) sc.scrollTop = prevScroll;
+  }
 }
 
 // Firestoreの onSnapshot は1操作で複数回（ローカル反映＋サーバー確定＋
@@ -350,6 +347,14 @@ function wireScreenEvents() {
   });
   const addProjBtn = $("#add-project-btn");
   if (addProjBtn) addProjBtn.addEventListener("click", () => openAddProjectPrompt());
+
+  // 今日タブだけドラッグ並び替えを有効化
+  if (state.view === "today") {
+    const pad = $(".task-list-pad");
+    if (pad) attachDragSort(pad, (id) => state.tasks.find((t) => t.id === id));
+  } else {
+    detachDragSort();
+  }
 }
 
 async function toggleTask(taskId) {

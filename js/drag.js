@@ -1,0 +1,221 @@
+// 今日タスクリストの長押しドラッグ並び替え。
+// - 対象: data-task-id を持つ .task-row のみ（カレンダー予定は無視）
+// - 開始判定: 400ms 長押し中に 6px 以上動いたらキャンセル
+// - 並び替え中は他の要素のクリック（タップ編集・完了切替）を抑制
+// - 確定時: 隣接2要素の order の中間値を採用、現在の要素の order を更新
+
+import { updateTask } from "./db.js";
+
+const LONG_PRESS_MS = 400;
+const MOVE_TOLERANCE = 6;
+
+let activeAttach = null;
+
+// listContainer: .task-list-pad（子に .task-row が並ぶ）
+// getTaskById: state.tasks から id でタスクを引く関数（order値の参照用）
+export function attachDragSort(listContainer, getTaskById) {
+  detachDragSort();
+  if (!listContainer) return;
+
+  const state = {
+    waiting: null, // { taskId, el, startX, startY, timer }
+    dragging: null, // { taskId, el, rows, height, offsetY, scrollEl, currentIndex }
+  };
+
+  function pickRow(target) {
+    const el = target.closest(".task-row[data-task-id]");
+    return el && listContainer.contains(el) ? el : null;
+  }
+
+  function cancelWait() {
+    if (!state.waiting) return;
+    clearTimeout(state.waiting.timer);
+    state.waiting = null;
+  }
+
+  function onPointerDown(e) {
+    if (e.pointerType === "mouse" && e.button !== 0) return;
+    const row = pickRow(e.target);
+    if (!row) return;
+    state.waiting = {
+      taskId: row.dataset.taskId,
+      el: row,
+      startX: e.clientX,
+      startY: e.clientY,
+      timer: setTimeout(() => beginDrag(e), LONG_PRESS_MS),
+    };
+  }
+
+  function beginDrag(originEvent) {
+    if (!state.waiting) return;
+    const { el, taskId } = state.waiting;
+    state.waiting = null;
+    // 並び替え対象は data-task-id を持つ通常タスク行のみ
+    const rows = Array.from(listContainer.querySelectorAll(".task-row[data-task-id]"));
+    const currentIndex = rows.indexOf(el);
+    if (currentIndex < 0) return;
+    const rect = el.getBoundingClientRect();
+    const height = rect.height;
+    const offsetY = originEvent.clientY - rect.top;
+    el.classList.add("dragging");
+    // フロート化（width固定で左端揃え保持）
+    el.style.position = "fixed";
+    el.style.left = rect.left + "px";
+    el.style.width = rect.width + "px";
+    el.style.top = rect.top + "px";
+    el.style.zIndex = "100";
+    el.style.pointerEvents = "none";
+    el.style.boxShadow = "0 8px 28px rgba(0,0,0,0.6)";
+    // 他の行に同高さのスペースが残るよう、移動した行の場所に
+    // 仮プレースホルダーを挿入（同じ高さの透明div）
+    const placeholder = document.createElement("div");
+    placeholder.className = "drag-placeholder";
+    placeholder.style.height = height + "px";
+    placeholder.style.marginBottom = getComputedStyle(el).marginBottom;
+    el.after(placeholder);
+    if (navigator.vibrate) navigator.vibrate(20);
+
+    state.dragging = {
+      taskId,
+      el,
+      placeholder,
+      rows: rows.filter((r) => r !== el),
+      height,
+      offsetY,
+      currentIndex,
+      // 最終的に確定する rows 順（id配列）。currentIndex は移動先の位置。
+    };
+    document.body.classList.add("dragging-task");
+  }
+
+  function onPointerMove(e) {
+    // ドラッグ未開始時、動きが大きければキャンセル
+    if (state.waiting) {
+      const dx = e.clientX - state.waiting.startX;
+      const dy = e.clientY - state.waiting.startY;
+      if (Math.hypot(dx, dy) > MOVE_TOLERANCE) cancelWait();
+      return;
+    }
+    if (!state.dragging) return;
+    e.preventDefault();
+    const d = state.dragging;
+    const top = e.clientY - d.offsetY;
+    d.el.style.top = top + "px";
+
+    // 指のY位置に応じてプレースホルダーを動かす
+    const ph = d.placeholder;
+    const center = e.clientY;
+    // 他の行の中心と比較して、ph の位置を決める
+    let inserted = false;
+    for (const r of d.rows) {
+      const rect = r.getBoundingClientRect();
+      const mid = rect.top + rect.height / 2;
+      if (center < mid) {
+        if (ph.nextSibling !== r) r.before(ph);
+        inserted = true;
+        break;
+      }
+    }
+    if (!inserted) {
+      const last = d.rows[d.rows.length - 1];
+      if (last && ph.previousSibling !== last) last.after(ph);
+    }
+  }
+
+  async function onPointerUp() {
+    cancelWait();
+    if (!state.dragging) return;
+    const d = state.dragging;
+    document.body.classList.remove("dragging-task");
+    d.el.classList.remove("dragging");
+    // 並び確定：プレースホルダーがある位置に el を戻し、新しい順序を計算
+    d.placeholder.replaceWith(d.el);
+    d.el.style.position = "";
+    d.el.style.left = "";
+    d.el.style.width = "";
+    d.el.style.top = "";
+    d.el.style.zIndex = "";
+    d.el.style.pointerEvents = "";
+    d.el.style.boxShadow = "";
+
+    // 並び順を抽出
+    const newOrderRows = Array.from(listContainer.querySelectorAll(".task-row[data-task-id]"));
+    const newIndex = newOrderRows.indexOf(d.el);
+    if (newIndex < 0) {
+      state.dragging = null;
+      return;
+    }
+    const prev = newOrderRows[newIndex - 1];
+    const next = newOrderRows[newIndex + 1];
+    const newOrder = computeBetween(
+      prev ? getOrderValue(prev, getTaskById) : null,
+      next ? getOrderValue(next, getTaskById) : null
+    );
+    state.dragging = null;
+    // タップ抑制のため少し待ってからイベント有効化（次の onclick を無視）
+    suppressNextClick();
+    try {
+      await updateTask(d.taskId, { order: newOrder });
+    } catch (err) {
+      console.error("並び替えの保存に失敗:", err);
+    }
+  }
+
+  function onClickCapture(e) {
+    // ドラッグ確定直後のクリックを無視
+    if (clickSuppressed) {
+      e.stopPropagation();
+      e.preventDefault();
+      clickSuppressed = false;
+    }
+  }
+
+  let clickSuppressed = false;
+  function suppressNextClick() {
+    clickSuppressed = true;
+    setTimeout(() => (clickSuppressed = false), 350);
+  }
+
+  listContainer.addEventListener("pointerdown", onPointerDown);
+  document.addEventListener("pointermove", onPointerMove, { passive: false });
+  document.addEventListener("pointerup", onPointerUp);
+  document.addEventListener("pointercancel", onPointerUp);
+  listContainer.addEventListener("click", onClickCapture, true);
+
+  activeAttach = () => {
+    listContainer.removeEventListener("pointerdown", onPointerDown);
+    document.removeEventListener("pointermove", onPointerMove);
+    document.removeEventListener("pointerup", onPointerUp);
+    document.removeEventListener("pointercancel", onPointerUp);
+    listContainer.removeEventListener("click", onClickCapture, true);
+    cancelWait();
+    if (state.dragging) {
+      state.dragging.placeholder?.remove();
+      state.dragging = null;
+      document.body.classList.remove("dragging-task");
+    }
+  };
+}
+
+export function detachDragSort() {
+  if (activeAttach) {
+    activeAttach();
+    activeAttach = null;
+  }
+}
+
+function getOrderValue(rowEl, getTaskById) {
+  const id = rowEl.dataset.taskId;
+  const t = getTaskById(id);
+  if (!t) return Date.now();
+  if (typeof t.order === "number") return t.order;
+  return t.createdAt?.toMillis ? t.createdAt.toMillis() : 0;
+}
+
+// 前後の order の中間値を返す。両端の場合は適度に大/小の値。
+function computeBetween(prev, next) {
+  if (prev == null && next == null) return Date.now();
+  if (prev == null) return next - 1000;
+  if (next == null) return prev + 1000;
+  return (prev + next) / 2;
+}
