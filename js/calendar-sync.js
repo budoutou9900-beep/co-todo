@@ -96,11 +96,11 @@ async function fetchCalendarIds() {
   return (data.items || []).map((c) => c.id);
 }
 
-async function fetchEventsForCalendar(calId, timeMin, timeMax) {
+async function fetchEventsForCalendar(calId, timeMin, timeMax, maxResults = 50) {
   const url =
     `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calId)}/events` +
     `?timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}` +
-    "&singleEvents=true&orderBy=startTime&maxResults=50";
+    `&singleEvents=true&orderBy=startTime&maxResults=${maxResults}`;
   return mapEvents(await authedGet(url));
 }
 
@@ -150,4 +150,42 @@ function mapEvents(data) {
     start: ev.start.dateTime || ev.start.date,
     end: ev.end?.dateTime || ev.end?.date || null,
   }));
+}
+
+function pad2(n) {
+  return String(n).padStart(2, "0");
+}
+
+// 予定の開始からローカル日付（YYYY-MM-DD）を求める
+function eventDateKey(ev) {
+  if (ev.allDay) return ev.start.slice(0, 10); // start.date は既に YYYY-MM-DD
+  const d = new Date(ev.start);
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+}
+
+// 月カレンダー用：日付範囲（"YYYY-MM-DD" 〜 "YYYY-MM-DD"、両端含む）の予定を
+// 全カレンダーから取得し、日付キーごとにまとめて返す（{ "YYYY-MM-DD": [ev, ...] }）。
+export async function fetchEventsRange(startDateStr, endDateStr) {
+  const timeMin = new Date(startDateStr + "T00:00:00").toISOString();
+  const timeMax = new Date(endDateStr + "T23:59:59").toISOString();
+  const calIds = await fetchCalendarIds();
+  const settled = await Promise.allSettled(
+    calIds.map((id) => fetchEventsForCalendar(id, timeMin, timeMax, 250))
+  );
+  const byDate = {};
+  for (const s of settled) {
+    if (s.status !== "fulfilled") continue;
+    for (const ev of s.value) {
+      const key = eventDateKey(ev);
+      (byDate[key] ||= []).push(ev);
+    }
+  }
+  // 各日を時刻順（終日は先頭）に整列
+  for (const key of Object.keys(byDate)) {
+    byDate[key].sort((a, b) => {
+      if (a.allDay !== b.allDay) return a.allDay ? -1 : 1;
+      return a.start < b.start ? -1 : a.start > b.start ? 1 : 0;
+    });
+  }
+  return byDate;
 }

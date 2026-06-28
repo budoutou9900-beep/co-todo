@@ -1,12 +1,12 @@
 import { watchAuth, signIn, signOutUser } from "./auth.js";
 import { subscribeToTasks, subscribeToProjects, addTask, updateTask, addProject, updateProject, deleteTask, deleteProject } from "./db.js";
 import { completeTask } from "./tasks.js";
-import { renderWeekStrip, renderWeekView } from "./calendar.js";
+import { renderWeekView, renderMonthCalendar } from "./calendar.js";
 import { renderTodayTimeline } from "./timeline.js";
 import { attachDragSort, detachDragSort } from "./drag.js";
 import { attachSwipeToDelete, detachAllSwipe } from "./swipe.js";
-import { isConnected, connectCalendar, disconnectCalendar, fetchEvents, getLastFetchInfo } from "./calendar-sync.js";
-import { hexToRgb, todayStr, formatHeaderDate, startOfWeek, addDays, escapeHtml } from "./utils.js";
+import { isConnected, connectCalendar, disconnectCalendar, fetchEvents, fetchEventsRange, getLastFetchInfo } from "./calendar-sync.js";
+import { hexToRgb, todayStr, toDateStr, formatHeaderDate, startOfWeek, addDays, escapeHtml } from "./utils.js";
 
 const state = {
   user: null,
@@ -24,6 +24,10 @@ const state = {
   calendarEvents: [],
   calendarDate: null,
   doneCollapsed: true,
+  // 今週タブの月カレンダー
+  weekCalAnchor: todayStr(), // 表示中の月の基準日
+  weekCalEventsByDate: {}, // { "YYYY-MM-DD": [ev,...] }
+  weekCalLoadedMonth: null, // 取得済みの月キー "YYYY-MM"
 };
 
 const PROJECT_COLORS = ["#9580ff", "#5b8aff", "#d4a558", "#4ecf8a", "#ff7c5c"];
@@ -112,6 +116,8 @@ $$(".tab-item").forEach((el) => {
     state.view = el.dataset.view;
     renderScreen();
     updateTabBar();
+    // 今週タブに来たら月カレンダーの予定を取得（連携済みのとき）
+    if (state.view === "week") refreshWeekCalendar();
   });
 });
 function openRitualFromTab() {
@@ -129,6 +135,9 @@ function updateTabBar() {
     label.style.color = isActive ? active : idle;
     label.style.fontWeight = isActive ? "600" : "400";
   });
+  // プロジェクト追加FABはプロジェクトタブのときだけ表示
+  const projFab = $("#add-project-fab");
+  if (projFab) projFab.style.display = state.view === "projects" ? "flex" : "none";
 }
 
 // ---------- screen rendering ----------
@@ -195,7 +204,6 @@ function renderTodayScreen() {
           </div>
         </div>
       </div>
-      <div class="week-strip" id="week-strip">${renderWeekStrip(state.tasks, state.selectedDate, state.projects)}</div>
       <div class="timeline-label-row">
         <div class="timeline-label">タイムライン</div>
         <div style="display:flex;align-items:center;gap:10px">
@@ -215,6 +223,12 @@ function renderWeekScreen() {
   const rangeLabel = `${new Date(state.weekStart + "T00:00:00").getMonth() + 1}月 ${new Date(
     state.weekStart + "T00:00:00"
   ).getDate()}–${new Date(weekEndDay + "T00:00:00").getDate()}`;
+  const monthCal = renderMonthCalendar(
+    state.tasks,
+    state.weekCalEventsByDate,
+    state.projects,
+    state.weekCalAnchor
+  );
   return `
     <div class="screen">
       <div class="screen-header" style="padding-bottom:12px">
@@ -224,8 +238,11 @@ function renderWeekScreen() {
           <div style="font-size:11.5px;color:rgba(240,240,245,0.32)">${total}件</div>
         </div>
       </div>
-      <div class="task-list-scroll scroll" style="padding:0 16px 120px">
-        ${html || '<div class="empty-state">該当するタスクはありません</div>'}
+      <div class="task-list-scroll scroll" style="padding:0 0 120px">
+        ${monthCal}
+        <div style="padding:0 16px">
+          ${html || '<div class="empty-state">該当するタスクはありません</div>'}
+        </div>
       </div>
     </div>`;
 }
@@ -305,21 +322,12 @@ function renderProjectsScreen() {
         <div class="title-md">プロジェクト</div>
       </div>
       <div class="task-list-scroll scroll" style="padding:0 16px 120px">
-        ${cards}
-        <div class="add-project-btn" id="add-project-btn">＋ プロジェクトを追加</div>
+        ${cards || '<div class="empty-state">プロジェクトがありません</div>'}
       </div>
     </div>`;
 }
 
 function wireScreenEvents() {
-  // today: week strip date pick
-  $$(".week-strip-col").forEach((el) => {
-    el.addEventListener("click", () => {
-      state.selectedDate = el.dataset.date;
-      renderScreen();
-      if (state.calendarConnected) refreshCalendar(state.selectedDate);
-    });
-  });
   // today: calendar 連携トグル
   const calToggle = $("#cal-toggle");
   if (calToggle) calToggle.addEventListener("click", onCalendarToggle);
@@ -349,6 +357,19 @@ function wireScreenEvents() {
   // week: タップで編集
   $$(".week-task-row").forEach((el) => {
     el.addEventListener("click", () => openSheet({ taskId: el.dataset.taskId }));
+  });
+  // week: 月カレンダーのセル = その日付でタスク追加 / 矢印 = 月移動
+  $$(".mc-cell").forEach((el) => {
+    el.addEventListener("click", () => openSheet({ date: el.dataset.date }));
+  });
+  $$("[data-cal-nav]").forEach((el) => {
+    el.addEventListener("click", () => {
+      const dir = el.dataset.calNav === "prev" ? -1 : 1;
+      const a = new Date(state.weekCalAnchor + "T00:00:00");
+      state.weekCalAnchor = toDateStr(new Date(a.getFullYear(), a.getMonth() + dir, 1));
+      renderScreen();
+      refreshWeekCalendar();
+    });
   });
   // projects: toggle open
   $$("[data-toggle-project]").forEach((el) => {
@@ -381,9 +402,6 @@ function wireScreenEvents() {
       openSheet({ projectId: el.dataset.addSubtask });
     });
   });
-  const addProjBtn = $("#add-project-btn");
-  if (addProjBtn) addProjBtn.addEventListener("click", () => openAddProjectPrompt());
-
   // 今日タブだけドラッグ並び替えを有効化
   detachAllSwipe();
   if (state.view === "today") {
@@ -477,6 +495,31 @@ function waitForGisThenRefresh(attempt = 0) {
   }
   if (attempt >= 25) return; // 約5秒で諦める（次のユーザー操作で再試行される）
   setTimeout(() => waitForGisThenRefresh(attempt + 1), 200);
+}
+
+// 今週タブの月カレンダー：表示中の月（グリッドに出る前後の週も含む）の予定を取得。
+// 同じ月を取得済みならスキップ。
+let weekCalLoading = false;
+async function refreshWeekCalendar() {
+  if (!state.calendarConnected) return;
+  const a = new Date(state.weekCalAnchor + "T00:00:00");
+  const monthKey = `${a.getFullYear()}-${a.getMonth() + 1}`;
+  if (weekCalLoading || state.weekCalLoadedMonth === monthKey) return;
+  // グリッドは当月1日のある週の日曜〜6週後まで。前後の余白も含めて取得する。
+  const first = new Date(a.getFullYear(), a.getMonth(), 1);
+  const gridStart = new Date(a.getFullYear(), a.getMonth(), 1 - first.getDay());
+  const gridEnd = new Date(gridStart);
+  gridEnd.setDate(gridStart.getDate() + 41);
+  weekCalLoading = true;
+  try {
+    state.weekCalEventsByDate = await fetchEventsRange(toDateStr(gridStart), toDateStr(gridEnd));
+    state.weekCalLoadedMonth = monthKey;
+    if (state.view === "week") renderScreen();
+  } catch (e) {
+    console.error("月カレンダー取得エラー", e);
+  } finally {
+    weekCalLoading = false;
+  }
 }
 
 async function refreshCalendar(dateStr, notify = false) {
@@ -630,6 +673,7 @@ const REPEAT_OPTIONS = [
   { type: "interval", label: "毎日", interval: 1 },
 ];
 $("#open-sheet-btn").addEventListener("click", () => openSheet());
+$("#add-project-fab").addEventListener("click", () => openAddProjectPrompt());
 
 function defaultDraft() {
   return {
@@ -643,7 +687,7 @@ function defaultDraft() {
 // 引数: { taskId } で編集モード、{ projectId } で新規（プロジェクトをプリセット）。
 // 引数なし or 空オブジェクトで通常の新規追加。
 function openSheet(opts = {}) {
-  const { taskId, projectId } = opts;
+  const { taskId, projectId, date } = opts;
   if (taskId) {
     const t = state.tasks.find((x) => x.id === taskId);
     if (!t) return;
@@ -662,6 +706,7 @@ function openSheet(opts = {}) {
     };
   } else {
     const draft = defaultDraft();
+    if (date) draft.date = date;
     if (projectId) {
       const idx = state.projects.findIndex((p) => p.id === projectId);
       if (idx >= 0) draft.projectIndex = idx + 1;

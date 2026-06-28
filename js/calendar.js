@@ -5,10 +5,14 @@ import {
   dayNum,
   isWeekend,
   todayStr,
+  toDateStr,
   escapeHtml,
 } from "./utils.js";
 
 const NEUTRAL = "#5a5a72";
+const EVENT_COLOR = "#6b7a99"; // Google予定チップの色（カレンダー色は取得しないため統一）
+const DOW_HEAD = ["日", "月", "火", "水", "木", "金", "土"];
+const MAX_CHIPS = 3; // 1セルに出すチップの最大数
 
 function colorForTask(task, projectMap) {
   const p = task.projectId ? projectMap.get(task.projectId) : null;
@@ -49,6 +53,87 @@ export function renderWeekStrip(tasks, selectedDate, projects = []) {
       </div>`;
   }
   return html;
+}
+
+// 月カレンダー（日曜始まりの6週グリッド）。
+// tasks: 全タスク / eventsByDate: { "YYYY-MM-DD": [ev,...] } / monthAnchor: 表示月の任意の日
+export function renderMonthCalendar(tasks, eventsByDate = {}, projects = [], monthAnchor) {
+  const projectMap = new Map(projects.map((p) => [p.id, p]));
+  const today = todayStr();
+  const anchor = new Date(monthAnchor + "T00:00:00");
+  const year = anchor.getFullYear();
+  const month = anchor.getMonth();
+  const monthLabel = `${year}年${month + 1}月`;
+
+  // グリッド開始 = 当月1日のある週の日曜日
+  const first = new Date(year, month, 1);
+  const gridStart = new Date(year, month, 1 - first.getDay());
+
+  const head = DOW_HEAD.map((d, i) => {
+    const color = i === 0 ? "var(--weekend)" : i === 6 ? "#6f9bff" : "rgba(240,240,245,0.4)";
+    return `<div class="mc-dow" style="color:${color}">${d}</div>`;
+  }).join("");
+
+  let cells = "";
+  for (let i = 0; i < 42; i++) {
+    const d = new Date(gridStart);
+    d.setDate(gridStart.getDate() + i);
+    const dateStr = toDateStr(d);
+    const inMonth = d.getMonth() === month;
+    const isToday = dateStr === today;
+    const dow = d.getDay();
+    const numColor = isToday
+      ? "#fff"
+      : !inMonth
+      ? "rgba(240,240,245,0.22)"
+      : dow === 0
+      ? "var(--weekend)"
+      : dow === 6
+      ? "#6f9bff"
+      : "rgba(240,240,245,0.6)";
+
+    // チップ: Google予定 → タスク の順、最大 MAX_CHIPS
+    const evs = (eventsByDate[dateStr] || []).map((ev) => ({
+      label: ev.summary,
+      color: EVENT_COLOR,
+    }));
+    const tks = tasks
+      .filter((t) => t.date === dateStr)
+      .map((t) => ({
+        label: t.title,
+        color: (t.projectId && projectMap.get(t.projectId)?.color) || NEUTRAL,
+        done: t.done,
+      }));
+    const items = [...evs, ...tks];
+    const shown = items.slice(0, MAX_CHIPS);
+    const moreN = items.length - shown.length;
+    const chips =
+      shown
+        .map(
+          (it) =>
+            `<div class="mc-chip" style="background:${it.color};${it.done ? "opacity:0.45;" : ""}">${escapeHtml(
+              it.label
+            )}</div>`
+        )
+        .join("") + (moreN > 0 ? `<div class="mc-more">+${moreN}</div>` : "");
+
+    cells += `
+      <div class="mc-cell${inMonth ? "" : " mc-out"}" data-date="${dateStr}">
+        <div class="mc-num${isToday ? " mc-today" : ""}" style="color:${numColor}">${d.getDate()}</div>
+        <div class="mc-chips">${chips}</div>
+      </div>`;
+  }
+
+  return `
+    <div class="mc-wrap">
+      <div class="mc-header">
+        <div class="mc-nav" data-cal-nav="prev">‹</div>
+        <div class="mc-title">${monthLabel}</div>
+        <div class="mc-nav" data-cal-nav="next">›</div>
+      </div>
+      <div class="mc-grid mc-head-row">${head}</div>
+      <div class="mc-grid mc-cells">${cells}</div>
+    </div>`;
 }
 
 export function renderWeekView(tasks, weekStart, projects = []) {
