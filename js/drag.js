@@ -50,8 +50,9 @@ export function attachDragSort(listContainer, getTaskById) {
     if (!state.waiting) return;
     const { el, taskId } = state.waiting;
     state.waiting = null;
-    // 並び替え対象は data-task-id を持つ通常タスク行のみ
-    const rows = Array.from(listContainer.querySelectorAll(".task-row[data-task-id]"));
+    // ドラッグできるのは data-task-id を持つタスク行のみだが、配置先の境界には
+    // カレンダー予定行(.task-row)も含める＝予定と予定の間に挿入できる。
+    const rows = Array.from(listContainer.querySelectorAll(".task-row"));
     const currentIndex = rows.indexOf(el);
     if (currentIndex < 0) return;
     const rect = el.getBoundingClientRect();
@@ -138,8 +139,8 @@ export function attachDragSort(listContainer, getTaskById) {
     d.el.style.pointerEvents = "";
     d.el.style.boxShadow = "";
 
-    // 並び順を抽出
-    const newOrderRows = Array.from(listContainer.querySelectorAll(".task-row[data-task-id]"));
+    // 並び順を抽出（カレンダー予定行も境界として含める）
+    const newOrderRows = Array.from(listContainer.querySelectorAll(".task-row"));
     const newIndex = newOrderRows.indexOf(d.el);
     if (newIndex < 0) {
       state.dragging = null;
@@ -148,8 +149,8 @@ export function attachDragSort(listContainer, getTaskById) {
     const prev = newOrderRows[newIndex - 1];
     const next = newOrderRows[newIndex + 1];
     const newOrder = computeBetween(
-      prev ? getOrderValue(prev, getTaskById) : null,
-      next ? getOrderValue(next, getTaskById) : null
+      prev ? getOrderValue(prev) : null,
+      next ? getOrderValue(next) : null
     );
     state.dragging = null;
     // タップ抑制のため少し待ってからイベント有効化（次の onclick を無視）
@@ -204,12 +205,11 @@ export function detachDragSort() {
   }
 }
 
-function getOrderValue(rowEl, getTaskById) {
-  const id = rowEl.dataset.taskId;
-  const t = getTaskById(id);
-  if (!t) return Date.now();
-  if (typeof t.order === "number") return t.order;
-  return t.createdAt?.toMillis ? t.createdAt.toMillis() : 0;
+// 行の並び替えキーを data-sort-key 属性から読む（タスク・カレンダー予定共通）。
+// 終日予定の -Infinity など有限でない値は境界として無効＝null扱い。
+function getOrderValue(rowEl) {
+  const v = parseFloat(rowEl.dataset.sortKey);
+  return Number.isFinite(v) ? v : null;
 }
 
 // 前後の order の中間値を返す。両端の場合は適度に大/小の値。

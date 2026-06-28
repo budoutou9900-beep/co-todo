@@ -22,6 +22,7 @@ const state = {
   calendarConnected: isConnected(),
   calendarEvents: [],
   calendarDate: null,
+  doneCollapsed: true,
 };
 
 const PROJECT_COLORS = ["#9580ff", "#5b8aff", "#d4a558", "#4ecf8a", "#ff7c5c"];
@@ -73,12 +74,35 @@ $("#signout-btn").addEventListener("click", () => signOutUser());
 function startSubscriptions() {
   state.unsubTasks = subscribeToTasks((tasks) => {
     state.tasks = tasks;
+    carryOverOverdueTasks();
     requestRender();
   });
   state.unsubProjects = subscribeToProjects((projects) => {
     state.projects = projects;
     requestRender();
   });
+}
+
+// 期限切れの未完了タスクを今日に引き継ぐ。
+// - 対象: date が今日より前 かつ 未完了 かつ 繰り返しなし
+// - date を今日に上書き（元の日付は残さないシンプル方式）
+// - 更新後はそのタスクの date が今日になるため再実行で再マッチしない
+let carryOverRunning = false;
+async function carryOverOverdueTasks() {
+  if (carryOverRunning) return;
+  const today = todayStr();
+  const overdue = state.tasks.filter(
+    (t) => !t.done && t.date && t.date < today && (!t.repeat || t.repeat.type === "none")
+  );
+  if (overdue.length === 0) return;
+  carryOverRunning = true;
+  try {
+    await Promise.all(overdue.map((t) => updateTask(t.id, { date: today })));
+  } catch (e) {
+    console.error("タスクの引き継ぎに失敗:", e);
+  } finally {
+    carryOverRunning = false;
+  }
 }
 
 // ---------- tab navigation ----------
@@ -176,7 +200,7 @@ function renderTodayScreen() {
         </div>
       </div>
       <div class="task-list-scroll scroll">
-        <div class="task-list-pad">${renderTodayTimeline(dayTasks, events, state.projects)}</div>
+        <div class="task-list-pad">${renderTodayTimeline(dayTasks, events, state.projects, state.doneCollapsed)}</div>
       </div>
     </div>`;
 }
@@ -298,6 +322,13 @@ function wireScreenEvents() {
   // today: First ボタン（朝の儀式モード起動）
   const firstBtn = $("#first-btn");
   if (firstBtn) firstBtn.addEventListener("click", openRitualFromTab);
+  // today: 完了済みセクションの開閉
+  const doneToggle = $("#done-section-toggle");
+  if (doneToggle)
+    doneToggle.addEventListener("click", () => {
+      state.doneCollapsed = !state.doneCollapsed;
+      renderScreen();
+    });
   // today: タスク行 = タップで編集、チェック領域だけ完了トグル
   $$(".task-row").forEach((el) => {
     const taskId = el.dataset.taskId;

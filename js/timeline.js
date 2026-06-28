@@ -12,6 +12,11 @@ function colorOf(task, projectMap) {
   return p?.color || NEUTRAL;
 }
 
+// 並び替え用のソートキー: order が明示されていればそれ、無ければ createdAt
+function taskSortKey(t) {
+  return typeof t.order === "number" ? t.order : t.createdAt?.toMillis ? t.createdAt.toMillis() : 0;
+}
+
 function renderTaskCard(t, projectMap) {
   const color = colorOf(t, projectMap);
   const [r, g, b] = hexToRgb(color);
@@ -30,7 +35,7 @@ function renderTaskCard(t, projectMap) {
     : "";
   const repeatChip = t.repeat && t.repeat.type !== "none" ? `<span class="task-repeat-icon">↻</span>` : "";
   return `
-      <div class="task-row" data-task-id="${t.id}">
+      <div class="task-row" data-task-id="${t.id}" data-sort-key="${taskSortKey(t)}">
         <div class="task-card task-card-1line" style="${cardStyle}">
           <div class="task-check" style="${checkStyle}">${t.done ? checkSvg() : ""}</div>
           <div class="task-title-1line" style="${titleStyle}">${escapeHtml(t.title)}</div>
@@ -54,9 +59,15 @@ function calEventTimeLabel(ev) {
   return e ? `${s}–${e}` : s;
 }
 
+// カレンダー予定のソートキー: 終日は最上部固定、時刻ありは開始時刻のepoch ms
+function calSortKey(ev) {
+  if (ev.allDay) return -Infinity;
+  return new Date(ev.start).getTime();
+}
+
 function renderCalEventCard(ev) {
   return `
-      <div class="task-row" style="cursor:default">
+      <div class="task-row cal-event-row" data-sort-key="${calSortKey(ev)}" style="cursor:default">
         <div class="task-card task-card-1line" style="background:rgba(${CAL_COLOR},0.08);border-left:2.5px solid rgb(${CAL_COLOR});">
           <div class="task-check" style="border:none;background:rgba(${CAL_COLOR},0.16)">
             <svg width="12" height="12" viewBox="0 0 22 22" fill="none"><rect x="3" y="5" width="16" height="14" rx="2" stroke="rgb(${CAL_COLOR})" stroke-width="1.6"/><path d="M3 9h16M8 3v4M14 3v4" stroke="rgb(${CAL_COLOR})" stroke-width="1.6" stroke-linecap="round"/></svg>
@@ -80,23 +91,39 @@ export function repeatToLabel(repeat) {
 // 並び順:
 //   - カレンダーの終日予定が一番上
 //   - 次にカレンダーの時刻予定（時刻順）
-//   - 最後にタスク（createdAt 昇順 = 古い=入れた順）
-export function renderTodayTimeline(tasks, calEvents = [], projects = []) {
+//   - 未完了タスク（order 昇順 = 入れた順 / 手動並び替え順）
+//   - 完了タスクは折りたたみ「完了済み」セクションにまとめて下部へ
+export function renderTodayTimeline(tasks, calEvents = [], projects = [], doneCollapsed = true) {
   if (tasks.length === 0 && calEvents.length === 0) {
     return '<div class="empty-state">この日の予定はありません</div>';
   }
   const projectMap = new Map(projects.map((p) => [p.id, p]));
-  // 並び順: order が明示されていればそれ、無ければ createdAt（古いものほど先）
-  const keyOf = (t) =>
-    typeof t.order === "number" ? t.order : t.createdAt?.toMillis ? t.createdAt.toMillis() : 0;
-  const sortedTasks = [...tasks].sort((a, b) => keyOf(a) - keyOf(b));
-  const cal = [...calEvents].sort((a, b) => {
-    if (a.allDay !== b.allDay) return a.allDay ? -1 : 1;
-    return a.start < b.start ? -1 : a.start > b.start ? 1 : 0;
-  });
-  const html = [
-    ...cal.map((ev) => renderCalEventCard(ev)),
-    ...sortedTasks.map((t) => renderTaskCard(t, projectMap)),
-  ];
-  return html.join("");
+  const undone = tasks.filter((t) => !t.done);
+  const done = tasks.filter((t) => t.done).sort((a, b) => taskSortKey(a) - taskSortKey(b));
+
+  // 未完了タスクとカレンダー予定を1つのリストに統合し、ソートキー昇順で並べる。
+  // これにより「予定と予定の間」にタスクを配置できる（並び替えで order を更新）。
+  // 終日予定は -Infinity で常に最上部。
+  const merged = [
+    ...calEvents.map((ev) => ({ kind: "cal", key: calSortKey(ev), data: ev })),
+    ...undone.map((t) => ({ kind: "task", key: taskSortKey(t), data: t })),
+  ].sort((a, b) => a.key - b.key);
+
+  const parts = merged.map((item) =>
+    item.kind === "cal" ? renderCalEventCard(item.data) : renderTaskCard(item.data, projectMap)
+  );
+  if (done.length) {
+    parts.push(`
+      <div class="done-section-header" id="done-section-toggle">
+        <span class="done-section-title">完了済みタスク</span>
+        <span class="done-section-count">${done.length}</span>
+        <span class="done-section-chevron${doneCollapsed ? "" : " open"}">▾</span>
+      </div>`);
+    if (!doneCollapsed) {
+      parts.push(`<div class="done-section-list">${done
+        .map((t) => renderTaskCard(t, projectMap))
+        .join("")}</div>`);
+    }
+  }
+  return parts.join("");
 }

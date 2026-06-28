@@ -128,6 +128,14 @@ body.dragging-task .task-row[data-task-id] { transition: transform 0.18s ease; }
 .task-repeat { font-size: 9.5px; color: rgba(240, 240, 245, 0.3); }
 .place-tag { font-size: 10px; font-weight: 500; padding: 2px 8px; border-radius: 99px; white-space: nowrap; flex-shrink: 0; }
 
+/* 完了済みタスクの折りたたみセクション */
+.done-section-header { display: flex; align-items: center; gap: 8px; margin: 12px 2px 8px; padding: 6px 2px; cursor: pointer; user-select: none; }
+.done-section-title { font-size: 11px; font-weight: 600; letter-spacing: 0.6px; color: rgba(240, 240, 245, 0.4); text-transform: uppercase; }
+.done-section-count { font-size: 10.5px; font-weight: 600; color: rgba(149, 128, 255, 0.7); background: rgba(149, 128, 255, 0.14); border-radius: 99px; padding: 1px 8px; }
+.done-section-chevron { margin-left: auto; font-size: 12px; color: rgba(240, 240, 245, 0.4); transition: transform 0.2s ease; }
+.done-section-chevron.open { transform: rotate(180deg); }
+.done-section-list { animation: fadein 0.2s ease; }
+
 .empty-state { text-align: center; padding: 50px 20px; color: rgba(240, 240, 245, 0.3); font-size: 13px; animation: fadein 0.3s; }
 
 /* filters / week view */
@@ -235,7 +243,7 @@ body.dragging-task .task-row[data-task-id] { transition: transform 0.18s ease; }
 .toast { position: absolute; bottom: 120px; left: 50%; transform: translateX(-50%); z-index: 80; background: rgba(36, 36, 52, 0.96); border: 1px solid rgba(149, 128, 255, 0.3); border-radius: 13px; padding: 11px 18px; font-size: 13px; color: var(--text); box-shadow: 0 6px 24px rgba(0, 0, 0, 0.5); animation: fadein 0.25s ease; white-space: nowrap; }
 
 .app-header { flex-shrink: 0; padding: max(14px, env(safe-area-inset-top)) 16px 6px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.app-brand { display: flex; align-items: center; gap: 8px; }
-.app-logo { width: 22px; height: 22px; border-radius: 6px; display: block; }
-.app-brand-name { font-size: 14px; font-weight: 600; letter-spacing: -0.2px; color: var(--text); }
+.app-brand { display: flex; align-items: center; gap: 11px; }
+.app-logo { width: 33px; height: 33px; border-radius: 9px; display: block; }
+.app-brand-name { font-size: 21px; font-weight: 600; letter-spacing: -0.3px; color: var(--text); }
 .signout-btn { font-size: 10.5px; color: rgba(240, 240, 245, 0.35); cursor: pointer; padding: 4px 8px; }
