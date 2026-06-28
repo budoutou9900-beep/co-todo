@@ -37,12 +37,15 @@ export function attachDragSort(listContainer, getTaskById) {
     if (e.pointerType === "mouse" && e.button !== 0) return;
     const row = pickRow(e.target);
     if (!row) return;
+    const isMouse = e.pointerType === "mouse";
     state.waiting = {
       taskId: row.dataset.taskId,
       el: row,
       startX: e.clientX,
       startY: e.clientY,
-      timer: setTimeout(() => beginDrag(e), LONG_PRESS_MS),
+      isMouse,
+      // マウスは長押し不要（少し動かしたら即ドラッグ）。タッチ/ペンは長押しで開始。
+      timer: isMouse ? null : setTimeout(() => beginDrag(e), LONG_PRESS_MS),
     };
   }
 
@@ -90,11 +93,21 @@ export function attachDragSort(listContainer, getTaskById) {
   }
 
   function onPointerMove(e) {
-    // ドラッグ未開始時、動きが大きければキャンセル
+    // ドラッグ未開始時の判定
     if (state.waiting) {
       const dx = e.clientX - state.waiting.startX;
       const dy = e.clientY - state.waiting.startY;
-      if (Math.hypot(dx, dy) > MOVE_TOLERANCE) cancelWait();
+      if (state.waiting.isMouse) {
+        // マウス: 縦方向が優勢に動いたら即ドラッグ開始。
+        // 横優勢の動き（左スワイプ削除など）はドラッグ扱いにしない。
+        if (Math.hypot(dx, dy) > MOVE_TOLERANCE) {
+          if (Math.abs(dy) >= Math.abs(dx)) beginDrag(e);
+          else cancelWait();
+        }
+      } else if (Math.hypot(dx, dy) > MOVE_TOLERANCE) {
+        // タッチ/ペン: 長押し前に動いたらキャンセル（スクロール/スワイプ優先）
+        cancelWait();
+      }
       return;
     }
     if (!state.dragging) return;

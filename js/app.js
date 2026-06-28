@@ -1,9 +1,10 @@
 import { watchAuth, signIn, signOutUser } from "./auth.js";
-import { subscribeToTasks, subscribeToProjects, addTask, updateTask, addProject, updateProject } from "./db.js";
+import { subscribeToTasks, subscribeToProjects, addTask, updateTask, addProject, updateProject, deleteTask, deleteProject } from "./db.js";
 import { completeTask } from "./tasks.js";
 import { renderWeekStrip, renderWeekView } from "./calendar.js";
 import { renderTodayTimeline } from "./timeline.js";
 import { attachDragSort, detachDragSort } from "./drag.js";
+import { attachSwipeToDelete, detachAllSwipe } from "./swipe.js";
 import { isConnected, connectCalendar, disconnectCalendar, fetchEvents, getLastFetchInfo } from "./calendar-sync.js";
 import { hexToRgb, todayStr, formatHeaderDate, startOfWeek, addDays, escapeHtml } from "./utils.js";
 
@@ -149,6 +150,9 @@ function renderScreen() {
   lastRenderedHtml = html;
   lastRenderedView = state.view;
   content.innerHTML = html;
+  // ビュー切替のときだけフェードイン。同一ビューのデータ更新では付けない
+  // （タスク完了などの再描画で画面全体が一瞬暗くなるのを防ぐ）。
+  if (!keepScroll) $(".screen")?.classList.add("screen-enter");
   wireScreenEvents();
   if (keepScroll) {
     const sc = $(".task-list-scroll");
@@ -381,11 +385,54 @@ function wireScreenEvents() {
   if (addProjBtn) addProjBtn.addEventListener("click", () => openAddProjectPrompt());
 
   // 今日タブだけドラッグ並び替えを有効化
+  detachAllSwipe();
   if (state.view === "today") {
     const pad = $(".task-list-pad");
-    if (pad) attachDragSort(pad, (id) => state.tasks.find((t) => t.id === id));
+    if (pad) {
+      attachDragSort(pad, (id) => state.tasks.find((t) => t.id === id));
+      // 左スワイプでタスクを削除
+      attachSwipeToDelete(pad, {
+        rowSelector: ".task-row[data-task-id]",
+        foregroundSelector: ".task-card",
+        getId: (row) => row.dataset.taskId,
+        onDelete: (id) => deleteTaskById(id),
+      });
+    }
   } else {
     detachDragSort();
+    if (state.view === "projects") {
+      const scroll = $(".task-list-scroll");
+      // 左スワイプでプロジェクト（＋所属タスク）を削除
+      if (scroll)
+        attachSwipeToDelete(scroll, {
+          rowSelector: ".project-card",
+          getId: (row) => row.dataset.projectId,
+          onDelete: (id) => deleteProjectById(id),
+        });
+    }
+  }
+}
+
+async function deleteTaskById(id) {
+  try {
+    await deleteTask(id);
+    flash("タスクを削除しました");
+  } catch (e) {
+    console.error("タスク削除に失敗:", e);
+    flash("削除に失敗しました");
+  }
+}
+
+async function deleteProjectById(id) {
+  try {
+    // 所属タスクをまとめて削除してからプロジェクト本体を削除
+    const childIds = state.tasks.filter((t) => t.projectId === id).map((t) => t.id);
+    await Promise.all(childIds.map((tid) => deleteTask(tid)));
+    await deleteProject(id);
+    flash("プロジェクトを削除しました");
+  } catch (e) {
+    console.error("プロジェクト削除に失敗:", e);
+    flash("削除に失敗しました");
   }
 }
 
