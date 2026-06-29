@@ -1,6 +1,7 @@
 import {
   GoogleAuthProvider,
   signInWithRedirect,
+  signInWithCredential,
   getRedirectResult,
   signOut as firebaseSignOut,
   onAuthStateChanged,
@@ -10,7 +11,15 @@ import { auth } from "./firebase-config.js";
 // モバイルSafari/PWA(standalone)では signInWithPopup が
 // Google の "disallowed_useragent" 判定でブロックされるため、
 // リダイレクト方式に統一する。
+// デスクトップ版(Electronラッパー)では Google が埋め込みブラウザのOAuthを
+// 弾くため、システムブラウザでトークンを取得して signInWithCredential する。
 export async function signIn() {
+  if (window.desktopAuth?.googleOAuth) {
+    const { idToken, accessToken } = await window.desktopAuth.googleOAuth();
+    const cred = GoogleAuthProvider.credential(idToken, accessToken);
+    await signInWithCredential(auth, cred);
+    return;
+  }
   const provider = new GoogleAuthProvider();
   await signInWithRedirect(auth, provider);
 }

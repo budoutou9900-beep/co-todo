@@ -3,3 +3,6 @@ Thumbs.db
 *.log
 Personal task management app UI.zip
 .firebase/
+node_modules/
+desktop/node_modules/
+desktop/oauth-config.json

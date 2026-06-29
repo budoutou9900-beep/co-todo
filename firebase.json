@@ -5,6 +5,7 @@
       "firebase.json",
       "**/.*",
       "**/node_modules/**",
+      "desktop/**",
       "Personal task management app UI.zip",
       "README.md",
       "firestore.rules"

@@ -1,0 +1,12 @@
+{
+  "name": "co-todo-desktop",
+  "version": "1.0.0",
+  "description": "co-todo を細いウィンドウで開くデスクトップラッパー（Electron）",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "devDependencies": {
+    "electron": "^31.3.0"
+  }
+}
