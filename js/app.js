@@ -380,6 +380,9 @@ function wireScreenEvents() {
       const p = state.projects.find((x) => x.id === id);
       p.open = !p.open;
       renderScreen();
+      // Firestoreにも保存しないと、他のプロジェクトを編集した際の再購読で
+      // open状態がリセットされてしまう（onSnapshotは毎回全件を返すため）。
+      updateProject(id, { open: p.open }).catch((e) => console.error("開閉状態の保存に失敗:", e));
     });
   });
   // projects: 小タスク = タップで編集、チェックだけ完了トグル
@@ -675,6 +678,18 @@ const REPEAT_OPTIONS = [
   { type: "interval", label: "3日ごと", interval: 3 },
   { type: "interval", label: "毎日", interval: 1 },
 ];
+// REPEAT_OPTIONS は type が重複する（interval違いの「3日ごと」「毎日」）ため、
+// type だけでなく interval/days まで一致させて該当インデックスを特定する。
+function findRepeatOptionIndex(repeat) {
+  const type = repeat?.type || "none";
+  return REPEAT_OPTIONS.findIndex((r) => {
+    if (r.type !== type) return false;
+    if (type === "interval") return (r.interval || 0) === (repeat?.interval || 0);
+    if (type === "weekly") return JSON.stringify(r.days || []) === JSON.stringify(repeat?.days || []);
+    return true;
+  });
+}
+
 $("#open-sheet-btn").addEventListener("click", () => openSheet());
 $("#add-project-fab").addEventListener("click", () => openAddProjectPrompt());
 
@@ -700,10 +715,7 @@ function openSheet(opts = {}) {
       draft: {
         title: t.title,
         date: t.date || state.selectedDate,
-        repeatIndex: Math.max(
-          0,
-          REPEAT_OPTIONS.findIndex((r) => r.type === (t.repeat?.type || "none"))
-        ),
+        repeatIndex: Math.max(0, findRepeatOptionIndex(t.repeat)),
         projectIndex: t.projectId ? state.projects.findIndex((p) => p.id === t.projectId) + 1 : 0,
       },
     };
@@ -856,6 +868,24 @@ async function saveDraftAndContinue() {
   renderSheet(); // animate-in なしで再描画
   $("#draft-title-input")?.focus();
 }
+
+// ---------- 日付またぎの追従 ----------
+// 今日タブには日付を選び直すUIが無く、state.selectedDate は常に「今日」を指す
+// 前提で動いている。PWAを日をまたいで開きっぱなしにすると selectedDate が
+// 前日のまま固まり、carryOverOverdueTasks が date を新しい今日に書き換えても
+// 表示フィルタ(selectedDate)とズレて消えて見える問題があったため、日付変化を
+// 検知したら selectedDate を更新し、引き継ぎ判定もやり直す。
+function syncSelectedDateToToday() {
+  const today = todayStr();
+  if (state.selectedDate === today) return;
+  state.selectedDate = today;
+  carryOverOverdueTasks();
+  if (state.view === "today") renderScreen();
+}
+setInterval(syncSelectedDateToToday, 60 * 1000);
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden) syncSelectedDateToToday();
+});
 
 // ---------- init ----------
 updateTabBar();
