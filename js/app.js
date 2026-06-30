@@ -277,41 +277,43 @@ function renderProjectsScreen() {
       return `
       <div class="project-card" data-project-id="${p.id}">
         <div class="project-top-bar" style="background:linear-gradient(90deg,${p.color},rgba(${r},${g},${b},0.3))"></div>
-        <div class="project-header-row" data-toggle-project="${p.id}">
-          <div>
-            <div class="project-name">${escapeHtml(p.title)}</div>
-            <div class="project-sub">${subs.length}個のタスク</div>
-          </div>
-          <div style="text-align:right">
-            <div class="project-pct" style="color:${p.color}">${pct}%</div>
-            <div class="project-pct-label">完了</div>
-          </div>
-        </div>
-        <div class="project-bar-track">
-          <div class="project-bar-fill" style="width:${pct}%;background:linear-gradient(90deg,${p.color},rgba(${r},${g},${b},0.65));box-shadow:0 0 8px rgba(${r},${g},${b},0.5)"></div>
-        </div>
-        <div class="project-footer-row">
-          <div class="project-footer-left">
+        <div class="project-swipe-area">
+          <div class="project-header-row" data-toggle-project="${p.id}">
             <div>
-              <div class="project-stat-val">${doneN} / ${subs.length}</div>
-              <div class="project-stat-label">タスク完了</div>
+              <div class="project-name">${escapeHtml(p.title)}</div>
+              <div class="project-sub">${subs.length}個のタスク</div>
             </div>
-            <div>
-              <div class="project-due" style="color:${dueWarn ? "var(--warn)" : "rgba(240,240,245,0.65)"}">${
+            <div style="text-align:right">
+              <div class="project-pct" style="color:${p.color}">${pct}%</div>
+              <div class="project-pct-label">完了</div>
+            </div>
+          </div>
+          <div class="project-bar-track">
+            <div class="project-bar-fill" style="width:${pct}%;background:linear-gradient(90deg,${p.color},rgba(${r},${g},${b},0.65));box-shadow:0 0 8px rgba(${r},${g},${b},0.5)"></div>
+          </div>
+          <div class="project-footer-row">
+            <div class="project-footer-left">
+              <div>
+                <div class="project-stat-val">${doneN} / ${subs.length}</div>
+                <div class="project-stat-label">タスク完了</div>
+              </div>
+              <div>
+                <div class="project-due" style="color:${dueWarn ? "var(--warn)" : "rgba(240,240,245,0.65)"}">${
         p.dueDate || "—"
       }</div>
-              <div class="project-stat-label">締切</div>
+                <div class="project-stat-label">締切</div>
+              </div>
             </div>
+            <div class="project-expand-hint">${p.open ? "閉じる ▲" : "開く ▼"}</div>
           </div>
-          <div class="project-expand-hint">${p.open ? "閉じる ▲" : "開く ▼"}</div>
+          ${
+            p.open
+              ? `<div class="project-subtasks">${subRows || '<div class="project-stat-label">小タスクなし</div>'}
+                <div class="add-subtask-btn" data-add-subtask="${p.id}">＋ タスクを追加</div>
+              </div>`
+              : ""
+          }
         </div>
-        ${
-          p.open
-            ? `<div class="project-subtasks">${subRows || '<div class="project-stat-label">小タスクなし</div>'}
-              <div class="add-subtask-btn" data-add-subtask="${p.id}">＋ タスクを追加</div>
-            </div>`
-            : ""
-        }
       </div>`;
     })
     .join("");
@@ -424,6 +426,7 @@ function wireScreenEvents() {
       if (scroll)
         attachSwipeToDelete(scroll, {
           rowSelector: ".project-card",
+          foregroundSelector: ".project-swipe-area",
           getId: (row) => row.dataset.projectId,
           onDelete: (id) => deleteProjectById(id),
         });
