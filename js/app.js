@@ -264,7 +264,7 @@ function renderProjectsScreen() {
             ? `color:rgba(240,240,245,0.4);text-decoration:line-through;text-decoration-color:rgba(${r},${g},${b},0.4)`
             : "color:rgba(240,240,245,0.78)";
           return `
-          <div class="subtask-row" data-task-id="${t.id}">
+          <div class="subtask-row" data-task-id="${t.id}" data-sort-key="${t.order ?? ""}">
             <div class="subtask-check" style="${checkStyle}">${
             t.done
               ? '<svg width="8" height="6" viewBox="0 0 9 7" fill="none"><path d="M1 3.5l2.5 2.5L8 .5" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/></svg>'
@@ -407,8 +407,9 @@ function wireScreenEvents() {
       openSheet({ projectId: el.dataset.addSubtask });
     });
   });
-  // 今日タブだけドラッグ並び替えを有効化
+  // タブ切り替え時に前回のイベントをすべて解除
   detachAllSwipe();
+  detachDragSort();
   if (state.view === "today") {
     const pad = $(".task-list-pad");
     if (pad) {
@@ -422,7 +423,6 @@ function wireScreenEvents() {
       });
     }
   } else {
-    detachDragSort();
     if (state.view === "projects") {
       const scroll = $(".task-list-scroll");
       // 左スワイプでプロジェクト（＋所属タスク）を削除
@@ -431,8 +431,12 @@ function wireScreenEvents() {
           rowSelector: ".project-card",
           foregroundSelector: ".project-swipe-area",
           getId: (row) => row.dataset.projectId,
-          onDelete: (id) => deleteProjectById(id),
+          onDelete: (id, row) => confirmDeleteProject(id, row),
         });
+      // 展開中プロジェクトの subtask リストに並び替えを attach
+      $$(".project-subtasks").forEach((container) => {
+        attachDragSort(container, (id) => state.tasks.find((t) => t.id === id), ".subtask-row[data-task-id]");
+      });
     }
   }
 }
@@ -445,6 +449,31 @@ async function deleteTaskById(id) {
     console.error("タスク削除に失敗:", e);
     flash("削除に失敗しました");
   }
+}
+
+function confirmDeleteProject(id, row) {
+  // スワイプを閉じるため一旦元に戻す
+  const fg = row?.querySelector(".project-swipe-area");
+  if (fg) { fg.style.transition = ""; fg.style.transform = ""; }
+
+  const overlay = document.createElement("div");
+  overlay.className = "confirm-overlay";
+  const p = state.projects.find((x) => x.id === id);
+  const childCount = state.tasks.filter((t) => t.projectId === id).length;
+  overlay.innerHTML = `
+    <div class="confirm-sheet">
+      <div class="confirm-title">「${escapeHtml(p?.title ?? "")}」を削除しますか？</div>
+      <div class="confirm-body">このプロジェクトと所属タスク ${childCount} 件がすべて削除されます。この操作は取り消せません。</div>
+      <button class="confirm-btn-delete">削除する</button>
+      <button class="confirm-btn-cancel">キャンセル</button>
+    </div>`;
+  overlay.querySelector(".confirm-btn-delete").addEventListener("click", async () => {
+    overlay.remove();
+    await deleteProjectById(id);
+  });
+  overlay.querySelector(".confirm-btn-cancel").addEventListener("click", () => overlay.remove());
+  overlay.addEventListener("click", (e) => { if (e.target === overlay) overlay.remove(); });
+  document.getElementById("app-root").appendChild(overlay);
 }
 
 async function deleteProjectById(id) {

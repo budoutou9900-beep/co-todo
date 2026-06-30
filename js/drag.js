@@ -9,12 +9,12 @@ import { updateTask } from "./db.js";
 const LONG_PRESS_MS = 400;
 const MOVE_TOLERANCE = 6;
 
-let activeAttach = null;
+let activeAttaches = [];
 
 // listContainer: .task-list-pad（子に .task-row が並ぶ）
 // getTaskById: state.tasks から id でタスクを引く関数（order値の参照用）
-export function attachDragSort(listContainer, getTaskById) {
-  detachDragSort();
+// rowSelector: ドラッグ対象の CSS セレクタ（省略時は ".task-row[data-task-id]"）
+export function attachDragSort(listContainer, getTaskById, rowSelector = ".task-row[data-task-id]") {
   if (!listContainer) return;
 
   const state = {
@@ -23,7 +23,7 @@ export function attachDragSort(listContainer, getTaskById) {
   };
 
   function pickRow(target) {
-    const el = target.closest(".task-row[data-task-id]");
+    const el = target.closest(rowSelector);
     return el && listContainer.contains(el) ? el : null;
   }
 
@@ -55,7 +55,7 @@ export function attachDragSort(listContainer, getTaskById) {
     state.waiting = null;
     // ドラッグできるのは data-task-id を持つタスク行のみだが、配置先の境界には
     // カレンダー予定行(.task-row)も含める＝予定と予定の間に挿入できる。
-    const rows = Array.from(listContainer.querySelectorAll(".task-row"));
+    const rows = Array.from(listContainer.querySelectorAll(rowSelector.split("[")[0]));
     const currentIndex = rows.indexOf(el);
     if (currentIndex < 0) return;
     const rect = el.getBoundingClientRect();
@@ -196,7 +196,7 @@ export function attachDragSort(listContainer, getTaskById) {
   document.addEventListener("pointercancel", onPointerUp);
   listContainer.addEventListener("click", onClickCapture, true);
 
-  activeAttach = () => {
+  const detach = () => {
     listContainer.removeEventListener("pointerdown", onPointerDown);
     document.removeEventListener("pointermove", onPointerMove);
     document.removeEventListener("pointerup", onPointerUp);
@@ -209,13 +209,12 @@ export function attachDragSort(listContainer, getTaskById) {
       document.body.classList.remove("dragging-task");
     }
   };
+  activeAttaches.push(detach);
 }
 
 export function detachDragSort() {
-  if (activeAttach) {
-    activeAttach();
-    activeAttach = null;
-  }
+  activeAttaches.forEach((fn) => fn());
+  activeAttaches = [];
 }
 
 // 行の並び替えキーを data-sort-key 属性から読む（タスク・カレンダー予定共通）。
