@@ -30,7 +30,11 @@ const state = {
   weekCalLoadedMonth: null, // 取得済みの月キー "YYYY-MM"
 };
 
-const PROJECT_COLORS = ["#9580ff", "#5b8aff", "#d4a558", "#4ecf8a", "#ff7c5c"];
+const PROJECT_COLORS = [
+  "#9580ff", "#5b8aff", "#4ecf8a", "#d4a558", "#ff7c5c",
+  "#ff5c9e", "#5cd6ff", "#c5e05c", "#e0985c", "#8a5cff",
+  "#5cffcf", "#ff5c5c",
+];
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
@@ -413,7 +417,13 @@ function wireScreenEvents() {
   if (state.view === "today") {
     const pad = $(".task-list-pad");
     if (pad) {
-      attachDragSort(pad, (id) => state.tasks.find((t) => t.id === id));
+      // 「今日中」「+α」セクションをまたいで移動したら priority も更新する。
+      // 隣接する行（カレンダー予定は data-priority なし）の priority を優先的に継承。
+      const computeExtraPriority = (prevRow, nextRow) => {
+        const p = prevRow?.dataset.priority || nextRow?.dataset.priority || "today";
+        return { priority: p };
+      };
+      attachDragSort(pad, (id) => state.tasks.find((t) => t.id === id), ".task-row[data-task-id]", computeExtraPriority);
       // 左スワイプでタスクを削除
       attachSwipeToDelete(pad, {
         rowSelector: ".task-row[data-task-id]",
@@ -728,6 +738,7 @@ function defaultDraft() {
     date: state.selectedDate,
     repeatIndex: 0,
     projectIndex: 0,
+    priority: "today",
   };
 }
 
@@ -746,6 +757,7 @@ function openSheet(opts = {}) {
         date: t.date || state.selectedDate,
         repeatIndex: Math.max(0, findRepeatOptionIndex(t.repeat)),
         projectIndex: t.projectId ? state.projects.findIndex((p) => p.id === t.projectId) + 1 : 0,
+        priority: t.priority === "extra" ? "extra" : "today",
       },
     };
   } else {
@@ -814,6 +826,11 @@ function renderSheet(animate = false) {
             </div>
             <svg width="13" height="13" viewBox="0 0 12 12" fill="none"><path d="M2 6a4 4 0 014-4h2M10 6a4 4 0 01-4 4H4" stroke="rgba(149,128,255,0.6)" stroke-width="1.3" stroke-linecap="round"/><path d="M8 1l2 1.5-2 1.5M4 8L2 9.5 4 11" stroke="rgba(149,128,255,0.6)" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </div>
+          <div class="field-box-label" style="margin:14px 0 6px">優先度</div>
+          <div class="priority-toggle">
+            <div class="priority-opt${d.priority !== "extra" ? " priority-opt-active" : ""}" data-priority="today">今日中</div>
+            <div class="priority-opt${d.priority === "extra" ? " priority-opt-active" : ""}" data-priority="extra">+α</div>
+          </div>
         </div>
       </div>
     </div>`;
@@ -842,12 +859,46 @@ function wireSheetEvents() {
     state.sheet.draft.repeatIndex = (state.sheet.draft.repeatIndex + 1) % REPEAT_OPTIONS.length;
     renderSheet();
   });
-  $("#draft-project-box").addEventListener("click", () => {
-    const total = state.projects.length + 1;
-    state.sheet.draft.projectIndex = (state.sheet.draft.projectIndex + 1) % total;
-    renderSheet();
+  $("#draft-project-box").addEventListener("click", openProjectPicker);
+  $$(".priority-opt").forEach((el) => {
+    el.addEventListener("click", () => {
+      state.sheet.draft.priority = el.dataset.priority;
+      renderSheet();
+    });
   });
   $("#sheet-save-btn").addEventListener("click", saveDraftTask);
+}
+
+// タスク編集シート内「プロジェクト」欄のピッカー。日付ピッカーと同様、
+// 一覧から1つ選ぶ体験にするため、タップ巡回方式をやめて選択肢を並べる。
+function openProjectPicker() {
+  const projNames = ["なし", ...state.projects.map((p) => p.title)];
+  const projColors = ["rgba(255,255,255,0.25)", ...state.projects.map((p) => p.color)];
+  const overlay = document.createElement("div");
+  overlay.className = "confirm-overlay";
+  const rows = projNames
+    .map(
+      (name, i) => `
+      <div class="picker-row${i === state.sheet.draft.projectIndex ? " picker-row-active" : ""}" data-picker-idx="${i}">
+        <div class="proj-dot" style="background:${projColors[i]}"></div>
+        <div class="picker-row-label">${escapeHtml(name)}</div>
+      </div>`
+    )
+    .join("");
+  overlay.innerHTML = `
+    <div class="confirm-sheet">
+      <div class="confirm-title">プロジェクトを選択</div>
+      <div class="picker-list">${rows}</div>
+    </div>`;
+  overlay.querySelectorAll("[data-picker-idx]").forEach((el) => {
+    el.addEventListener("click", () => {
+      state.sheet.draft.projectIndex = Number(el.dataset.pickerIdx);
+      overlay.remove();
+      renderSheet();
+    });
+  });
+  overlay.addEventListener("click", (e) => { if (e.target === overlay) overlay.remove(); });
+  document.getElementById("app-root").appendChild(overlay);
 }
 
 // draftをFirestoreに書き込む。成功すればtrueを返す。
@@ -864,6 +915,7 @@ async function commitDraft() {
     title: d.title.trim(),
     date: d.date || null,
     projectId,
+    priority: d.priority === "extra" ? "extra" : "today",
     repeat: {
       type: repeatOpt.type,
       days: repeatOpt.days || [],

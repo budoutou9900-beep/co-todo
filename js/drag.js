@@ -14,7 +14,9 @@ let activeAttaches = [];
 // listContainer: .task-list-pad（子に .task-row が並ぶ）
 // getTaskById: state.tasks から id でタスクを引く関数（order値の参照用）
 // rowSelector: ドラッグ対象の CSS セレクタ（省略時は ".task-row[data-task-id]"）
-export function attachDragSort(listContainer, getTaskById, rowSelector = ".task-row[data-task-id]") {
+// computeExtra(prevRow, nextRow): order 以外に追加保存したいフィールドを返す任意の関数
+//   （例: 今日タブで「今日中」「+α」セクションをまたいだ移動時に priority を更新）
+export function attachDragSort(listContainer, getTaskById, rowSelector = ".task-row[data-task-id]", computeExtra = null) {
   if (!listContainer) return;
 
   const state = {
@@ -153,7 +155,7 @@ export function attachDragSort(listContainer, getTaskById, rowSelector = ".task-
     d.el.style.boxShadow = "";
 
     // 並び順を抽出（カレンダー予定行も境界として含める）
-    const newOrderRows = Array.from(listContainer.querySelectorAll(".task-row"));
+    const newOrderRows = Array.from(listContainer.querySelectorAll(rowSelector.split("[")[0]));
     const newIndex = newOrderRows.indexOf(d.el);
     if (newIndex < 0) {
       state.dragging = null;
@@ -165,11 +167,12 @@ export function attachDragSort(listContainer, getTaskById, rowSelector = ".task-
       prev ? getOrderValue(prev) : null,
       next ? getOrderValue(next) : null
     );
+    const extraChanges = computeExtra ? computeExtra(prev, next) : {};
     state.dragging = null;
     // タップ抑制のため少し待ってからイベント有効化（次の onclick を無視）
     suppressNextClick();
     try {
-      await updateTask(d.taskId, { order: newOrder });
+      await updateTask(d.taskId, { order: newOrder, ...extraChanges });
     } catch (err) {
       console.error("並び替えの保存に失敗:", err);
     }

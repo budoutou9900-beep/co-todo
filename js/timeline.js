@@ -34,8 +34,9 @@ function renderTaskCard(t, projectMap) {
     ? `<span class="task-proj-chip" style="background:rgba(${r},${g},${b},0.16);color:${color}">${escapeHtml(project.title)}</span>`
     : "";
   const repeatChip = t.repeat && t.repeat.type !== "none" ? `<span class="task-repeat-icon">↻</span>` : "";
+  const priority = t.priority === "extra" ? "extra" : "today";
   return `
-      <div class="task-row" data-task-id="${t.id}" data-sort-key="${taskSortKey(t)}">
+      <div class="task-row" data-task-id="${t.id}" data-sort-key="${taskSortKey(t)}" data-priority="${priority}">
         <div class="task-card task-card-1line" style="${cardStyle}">
           <div class="task-check" style="${checkStyle}">${t.done ? checkSvg() : ""}</div>
           <div class="task-title-1line" style="${titleStyle}">${escapeHtml(t.title)}</div>
@@ -99,19 +100,31 @@ export function renderTodayTimeline(tasks, calEvents = [], projects = [], doneCo
   }
   const projectMap = new Map(projects.map((p) => [p.id, p]));
   const undone = tasks.filter((t) => !t.done);
+  const todayUndone = undone.filter((t) => t.priority !== "extra");
+  const extraUndone = undone.filter((t) => t.priority === "extra");
   const done = tasks.filter((t) => t.done).sort((a, b) => taskSortKey(a) - taskSortKey(b));
 
-  // 未完了タスクとカレンダー予定を1つのリストに統合し、ソートキー昇順で並べる。
+  // 「今日中」タスクとカレンダー予定を1つのリストに統合し、ソートキー昇順で並べる。
   // これにより「予定と予定の間」にタスクを配置できる（並び替えで order を更新）。
-  // 終日予定は -Infinity で常に最上部。
+  // 終日予定は -Infinity で常に最上部。「+α」タスクは別セクションに分離。
   const merged = [
     ...calEvents.map((ev) => ({ kind: "cal", key: calSortKey(ev), data: ev })),
-    ...undone.map((t) => ({ kind: "task", key: taskSortKey(t), data: t })),
+    ...todayUndone.map((t) => ({ kind: "task", key: taskSortKey(t), data: t })),
   ].sort((a, b) => a.key - b.key);
 
   const parts = merged.map((item) =>
     item.kind === "cal" ? renderCalEventCard(item.data) : renderTaskCard(item.data, projectMap)
   );
+
+  if (extraUndone.length) {
+    parts.push(`<div class="extra-section-header"><span class="extra-section-title">+α</span></div>`);
+    parts.push(
+      ...extraUndone
+        .sort((a, b) => taskSortKey(a) - taskSortKey(b))
+        .map((t) => renderTaskCard(t, projectMap))
+    );
+  }
+
   if (done.length) {
     parts.push(`
       <div class="done-section-header" id="done-section-toggle">
