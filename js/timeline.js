@@ -95,9 +95,6 @@ export function repeatToLabel(repeat) {
 //   - 未完了タスク（order 昇順 = 入れた順 / 手動並び替え順）
 //   - 完了タスクは折りたたみ「完了済み」セクションにまとめて下部へ
 export function renderTodayTimeline(tasks, calEvents = [], projects = [], doneCollapsed = true) {
-  if (tasks.length === 0 && calEvents.length === 0) {
-    return '<div class="empty-state">この日の予定はありません</div>';
-  }
   const projectMap = new Map(projects.map((p) => [p.id, p]));
   const undone = tasks.filter((t) => !t.done);
   const todayUndone = undone.filter((t) => t.priority !== "extra");
@@ -116,13 +113,15 @@ export function renderTodayTimeline(tasks, calEvents = [], projects = [], doneCo
     item.kind === "cal" ? renderCalEventCard(item.data) : renderTaskCard(item.data, projectMap)
   );
 
+  parts.push(`<div class="extra-section-header"><span class="extra-section-title">+α</span></div>`);
   if (extraUndone.length) {
-    parts.push(`<div class="extra-section-header"><span class="extra-section-title">+α</span></div>`);
     parts.push(
       ...extraUndone
         .sort((a, b) => taskSortKey(a) - taskSortKey(b))
         .map((t) => renderTaskCard(t, projectMap))
     );
+  } else {
+    parts.push('<div class="empty-state extra-empty">+αのタスクはありません</div>');
   }
 
   if (done.length) {
