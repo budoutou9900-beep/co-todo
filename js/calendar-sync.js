@@ -87,21 +87,22 @@ async function authedGet(url) {
   return res.json();
 }
 
-// ユーザーが閲覧可能な全カレンダーのIDを取得（primaryだけでなく
-// 「授業」などの追加カレンダーや購読カレンダーも含む）
-async function fetchCalendarIds() {
+// ユーザーが閲覧可能な全カレンダーのID＋色を取得（primaryだけでなく
+// 「授業」などの追加カレンダーや購読カレンダーも含む）。
+// 色は calendarListEntry.backgroundColor（カレンダーごとにGoogleが割り当てる色）を使う。
+async function fetchCalendarList() {
   const data = await authedGet(
     "https://www.googleapis.com/calendar/v3/users/me/calendarList?minAccessRole=reader&maxResults=250"
   );
-  return (data.items || []).map((c) => c.id);
+  return (data.items || []).map((c) => ({ id: c.id, color: c.backgroundColor || null }));
 }
 
-async function fetchEventsForCalendar(calId, timeMin, timeMax, maxResults = 50) {
+async function fetchEventsForCalendar(calId, timeMin, timeMax, maxResults = 50, color = null) {
   const url =
     `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calId)}/events` +
     `?timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}` +
     `&singleEvents=true&orderBy=startTime&maxResults=${maxResults}`;
-  return mapEvents(await authedGet(url));
+  return mapEvents(await authedGet(url), color);
 }
 
 // 直近の取得状況（診断用）。{ calendars, events, failures }
@@ -114,10 +115,10 @@ export function getLastFetchInfo() {
 export async function fetchEvents(dateStr) {
   const timeMin = new Date(dateStr + "T00:00:00").toISOString();
   const timeMax = new Date(dateStr + "T23:59:59").toISOString();
-  const calIds = await fetchCalendarIds();
+  const cals = await fetchCalendarList();
   // カレンダーごとに並列取得。アクセス不可なカレンダーは個別にスキップ。
   const settled = await Promise.allSettled(
-    calIds.map((id) => fetchEventsForCalendar(id, timeMin, timeMax))
+    cals.map((c) => fetchEventsForCalendar(c.id, timeMin, timeMax, 50, c.color))
   );
   const all = [];
   let failures = 0;
@@ -129,10 +130,10 @@ export async function fetchEvents(dateStr) {
       lastErr = s.reason;
     }
   }
-  lastFetchInfo = { calendars: calIds.length, events: all.length, failures };
+  lastFetchInfo = { calendars: cals.length, events: all.length, failures };
   // すべてのカレンダー取得が失敗した場合はエラーとして扱う
-  if (all.length === 0 && failures > 0 && failures === calIds.length) {
-    throw new Error(`全カレンダー取得失敗(${calIds.length}件): ${lastErr?.message || lastErr}`);
+  if (all.length === 0 && failures > 0 && failures === cals.length) {
+    throw new Error(`全カレンダー取得失敗(${cals.length}件): ${lastErr?.message || lastErr}`);
   }
   all.sort((a, b) => {
     const ka = a.allDay ? "" : a.start;
@@ -142,13 +143,14 @@ export async function fetchEvents(dateStr) {
   return all;
 }
 
-function mapEvents(data) {
+function mapEvents(data, color = null) {
   return (data.items || []).map((ev) => ({
     id: ev.id,
     summary: ev.summary || "(無題の予定)",
     allDay: !!ev.start.date,
     start: ev.start.dateTime || ev.start.date,
     end: ev.end?.dateTime || ev.end?.date || null,
+    color,
   }));
 }
 
@@ -168,9 +170,9 @@ function eventDateKey(ev) {
 export async function fetchEventsRange(startDateStr, endDateStr) {
   const timeMin = new Date(startDateStr + "T00:00:00").toISOString();
   const timeMax = new Date(endDateStr + "T23:59:59").toISOString();
-  const calIds = await fetchCalendarIds();
+  const cals = await fetchCalendarList();
   const settled = await Promise.allSettled(
-    calIds.map((id) => fetchEventsForCalendar(id, timeMin, timeMax, 250))
+    cals.map((c) => fetchEventsForCalendar(c.id, timeMin, timeMax, 250, c.color))
   );
   const byDate = {};
   for (const s of settled) {

@@ -195,17 +195,24 @@ function renderTodayScreen() {
   const calChip = state.calendarConnected
     ? `<div id="cal-toggle" class="cal-chip on">📅 カレンダー</div>`
     : `<div id="cal-toggle" class="cal-chip">📅 連携</div>`;
+  // 月カレンダーの日付タップで今日以外の日を閲覧しているときは「戻る」を表示
+  const isDayDetail = state.selectedDate !== todayStr();
+  const headerAction = isDayDetail
+    ? `<div id="back-to-week-btn" class="first-btn" title="今日に戻る">
+        <svg width="18" height="18" viewBox="0 0 20 20" fill="none"><path d="M12.5 4l-6 6 6 6" stroke="#9580ff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>`
+    : `<div id="first-btn" class="first-btn" title="First（今日始めるタスクを選ぶ）">
+        <svg width="20" height="20" viewBox="0 0 22 22" fill="none"><circle cx="11" cy="11" r="3.2" stroke="#9580ff" stroke-width="1.6"/><path d="M11 1.5v2M11 18.5v2M1.5 11h2M18.5 11h2M4.22 4.22l1.41 1.41M16.37 16.37l1.41 1.41M4.22 17.78l1.41-1.41M16.37 5.63l1.41-1.41" stroke="#9580ff" stroke-width="1.6" stroke-linecap="round"/></svg>
+      </div>`;
   return `
     <div class="screen">
       <div class="screen-header">
         <div style="display:flex;justify-content:space-between;align-items:flex-start">
           <div>
-            <div class="eyebrow">TODAY</div>
+            <div class="eyebrow">${isDayDetail ? "指定日" : "TODAY"}</div>
             <div class="title-lg">${formatHeaderDate(state.selectedDate)}</div>
           </div>
-          <div id="first-btn" class="first-btn" title="First（今日始めるタスクを選ぶ）">
-            <svg width="20" height="20" viewBox="0 0 22 22" fill="none"><circle cx="11" cy="11" r="3.2" stroke="#9580ff" stroke-width="1.6"/><path d="M11 1.5v2M11 18.5v2M1.5 11h2M18.5 11h2M4.22 4.22l1.41 1.41M16.37 16.37l1.41 1.41M4.22 17.78l1.41-1.41M16.37 5.63l1.41-1.41" stroke="#9580ff" stroke-width="1.6" stroke-linecap="round"/></svg>
-          </div>
+          ${headerAction}
         </div>
       </div>
       <div class="timeline-label-row">
@@ -222,7 +229,7 @@ function renderTodayScreen() {
 }
 
 function renderWeekScreen() {
-  const { html, total } = renderWeekView(state.tasks, state.weekStart, state.projects);
+  const { html, total } = renderWeekView(state.tasks, state.weekStart, state.projects, state.weekCalEventsByDate);
   const weekEndDay = addDays(state.weekStart, 6);
   const rangeLabel = `${new Date(state.weekStart + "T00:00:00").getMonth() + 1}月 ${new Date(
     state.weekStart + "T00:00:00"
@@ -340,6 +347,9 @@ function wireScreenEvents() {
   // today: First ボタン（朝の儀式モード起動）
   const firstBtn = $("#first-btn");
   if (firstBtn) firstBtn.addEventListener("click", openRitualFromTab);
+  // today: 日別詳細表示中の「戻る」ボタン → 今日タブ本来の表示（今週タブ）へ戻る
+  const backBtn = $("#back-to-week-btn");
+  if (backBtn) backBtn.addEventListener("click", () => goToDayDetail(todayStr(), "week"));
   // today: 完了済みセクションの開閉
   const doneToggle = $("#done-section-toggle");
   if (doneToggle)
@@ -360,13 +370,15 @@ function wireScreenEvents() {
     }
     el.addEventListener("click", () => openSheet({ taskId }));
   });
-  // week: タップで編集
+  // week: タップで編集（カレンダー予定行は data-task-id が無いので読み取り専用）
   $$(".week-task-row").forEach((el) => {
-    el.addEventListener("click", () => openSheet({ taskId: el.dataset.taskId }));
+    const taskId = el.dataset.taskId;
+    if (!taskId) return;
+    el.addEventListener("click", () => openSheet({ taskId }));
   });
-  // week: 月カレンダーのセル = その日付でタスク追加 / 矢印 = 月移動
+  // week: 月カレンダーのセル = その日付の詳細（予定＋タスク）を表示 / 矢印 = 月移動
   $$(".mc-cell").forEach((el) => {
-    el.addEventListener("click", () => openSheet({ date: el.dataset.date }));
+    el.addEventListener("click", () => goToDayDetail(el.dataset.date, "today"));
   });
   $$("[data-cal-nav]").forEach((el) => {
     el.addEventListener("click", () => {
@@ -586,6 +598,16 @@ async function refreshCalendar(dateStr, notify = false) {
     console.error("カレンダー取得エラー", e);
     flash("予定取得エラー: " + (e?.message || e?.error || e));
   }
+}
+
+// カレンダーの日付タップ等から特定日の詳細（予定＋タスク）へ遷移する。
+// view: "today" ならタイムライン表示、"week" なら今週タブ（戻る用）に戻す。
+function goToDayDetail(dateStr, view) {
+  state.selectedDate = dateStr;
+  state.view = view;
+  renderScreen();
+  updateTabBar();
+  if (view === "today") refreshCalendar(dateStr);
 }
 
 async function openAddProjectPrompt() {
@@ -951,17 +973,25 @@ async function saveDraftAndContinue() {
 }
 
 // ---------- 日付またぎの追従 ----------
-// 今日タブには日付を選び直すUIが無く、state.selectedDate は常に「今日」を指す
-// 前提で動いている。PWAを日をまたいで開きっぱなしにすると selectedDate が
-// 前日のまま固まり、carryOverOverdueTasks が date を新しい今日に書き換えても
-// 表示フィルタ(selectedDate)とズレて消えて見える問題があったため、日付変化を
-// 検知したら selectedDate を更新し、引き継ぎ判定もやり直す。
+// 今日タブは通常 state.selectedDate が「今日」を指す前提で動いている。
+// PWAを日をまたいで開きっぱなしにすると selectedDate が前日のまま固まり、
+// carryOverOverdueTasks が date を新しい今日に書き換えても表示フィルタ
+// (selectedDate)とズレて消えて見える問題があったため、日付変化を検知したら
+// selectedDate を更新し、引き継ぎ判定もやり直す。
+// ただし月カレンダーの日付タップで今日以外を閲覧中（selectedDate が
+// 「直前まで認識していた今日」と一致しない＝ユーザーが能動的に選んだ日）の
+// 場合は selectedDate を勝手に今日へ戻さない。
+let lastKnownToday = todayStr();
 function syncSelectedDateToToday() {
   const today = todayStr();
-  if (state.selectedDate === today) return;
-  state.selectedDate = today;
+  if (lastKnownToday === today) return;
+  const wasViewingToday = state.selectedDate === lastKnownToday;
+  lastKnownToday = today;
   carryOverOverdueTasks();
-  if (state.view === "today") renderScreen();
+  if (wasViewingToday) {
+    state.selectedDate = today;
+    if (state.view === "today") renderScreen();
+  }
 }
 setInterval(syncSelectedDateToToday, 60 * 1000);
 document.addEventListener("visibilitychange", () => {

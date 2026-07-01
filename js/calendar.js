@@ -10,7 +10,7 @@ import {
 } from "./utils.js";
 
 const NEUTRAL = "#5a5a72";
-const EVENT_COLOR = "#6b7a99"; // Google予定チップの色（カレンダー色は取得しないため統一）
+const EVENT_COLOR_FALLBACK = "#6b7a99"; // カレンダー色が取得できない場合のフォールバック
 const DOW_HEAD = ["日", "月", "火", "水", "木", "金", "土"];
 const MAX_CHIPS = 3; // 1セルに出すチップの最大数
 
@@ -95,7 +95,7 @@ export function renderMonthCalendar(tasks, eventsByDate = {}, projects = [], mon
     // チップ: Google予定 → タスク の順、最大 MAX_CHIPS
     const evs = (eventsByDate[dateStr] || []).map((ev) => ({
       label: ev.summary,
-      color: EVENT_COLOR,
+      color: ev.color || EVENT_COLOR_FALLBACK,
     }));
     const tks = tasks
       .filter((t) => t.date === dateStr)
@@ -136,20 +136,31 @@ export function renderMonthCalendar(tasks, eventsByDate = {}, projects = [], mon
     </div>`;
 }
 
-export function renderWeekView(tasks, weekStart, projects = []) {
+export function renderWeekView(tasks, weekStart, projects = [], eventsByDate = {}) {
   const projectMap = new Map(projects.map((p) => [p.id, p]));
   const dayOrder = [0, 1, 2, 3, 4, 5, 6].map((i) => addDays(weekStart, i));
   const today = todayStr();
   let total = 0;
   let html = "";
   for (const dateStr of dayOrder) {
-    // 今週は「何が未完了か」が重要なので、完了済みは除外する
+    // 今週は「何が未完了か」が重要なので、完了済みタスクは除外する（カレンダー予定は全件）
     const dayTasks = tasks.filter((t) => t.date === dateStr && !t.done);
-    if (dayTasks.length === 0) continue;
+    const dayEvents = eventsByDate[dateStr] || [];
+    if (dayTasks.length === 0 && dayEvents.length === 0) continue;
     total += dayTasks.length;
     const isToday = dateStr === today;
     const label = `${dowJp(dateStr)} · ${dayNum(dateStr)}`;
     const labelColor = isToday ? "rgba(149,128,255,0.85)" : "rgba(240,240,245,0.32)";
+    const eventRows = dayEvents
+      .map((ev) => {
+        const color = ev.color || EVENT_COLOR_FALLBACK;
+        return `
+        <div class="week-task-row" style="cursor:default">
+          <div class="week-task-dot" style="background:${color}"></div>
+          <div class="week-task-title" style="color:#f0f0f5">${escapeHtml(ev.summary)}</div>
+        </div>`;
+      })
+      .join("");
     const rows = dayTasks
       .map((t) => {
         const color = colorForTask(t, projectMap);
@@ -172,7 +183,7 @@ export function renderWeekView(tasks, weekStart, projects = []) {
           <div class="week-group-label" style="color:${labelColor}">${label}</div>
           ${isToday ? '<div class="today-badge">TODAY</div>' : ""}
         </div>
-        <div class="week-group-card">${rows}</div>
+        <div class="week-group-card">${eventRows}${rows}</div>
       </div>`;
   }
   return { html, total, empty: total === 0 };

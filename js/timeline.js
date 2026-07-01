@@ -46,7 +46,7 @@ function renderTaskCard(t, projectMap) {
       </div>`;
 }
 
-const CAL_COLOR = "78,197,212"; // カレンダー予定の識別色（シアン）
+const CAL_COLOR_FALLBACK = "78,197,212"; // カレンダー色が取得できない場合のフォールバック（シアン）
 
 function hm(iso) {
   const d = new Date(iso);
@@ -67,14 +67,15 @@ function calSortKey(ev) {
 }
 
 function renderCalEventCard(ev) {
+  const rgb = ev.color ? hexToRgb(ev.color).join(",") : CAL_COLOR_FALLBACK;
   return `
       <div class="task-row cal-event-row" data-sort-key="${calSortKey(ev)}" style="cursor:default">
-        <div class="task-card task-card-1line" style="background:rgba(${CAL_COLOR},0.08);border-left:2.5px solid rgb(${CAL_COLOR});">
-          <div class="task-check" style="border:none;background:rgba(${CAL_COLOR},0.16)">
-            <svg width="12" height="12" viewBox="0 0 22 22" fill="none"><rect x="3" y="5" width="16" height="14" rx="2" stroke="rgb(${CAL_COLOR})" stroke-width="1.6"/><path d="M3 9h16M8 3v4M14 3v4" stroke="rgb(${CAL_COLOR})" stroke-width="1.6" stroke-linecap="round"/></svg>
+        <div class="task-card task-card-1line" style="background:rgba(${rgb},0.08);border-left:2.5px solid rgb(${rgb});">
+          <div class="task-check" style="border:none;background:rgba(${rgb},0.16)">
+            <svg width="12" height="12" viewBox="0 0 22 22" fill="none"><rect x="3" y="5" width="16" height="14" rx="2" stroke="rgb(${rgb})" stroke-width="1.6"/><path d="M3 9h16M8 3v4M14 3v4" stroke="rgb(${rgb})" stroke-width="1.6" stroke-linecap="round"/></svg>
           </div>
           <div class="task-title-1line" style="color:#f0f0f5">${escapeHtml(ev.summary)}</div>
-          <span class="task-proj-chip" style="background:rgba(${CAL_COLOR},0.16);color:rgb(${CAL_COLOR})">${calEventTimeLabel(ev)}</span>
+          <span class="task-proj-chip" style="background:rgba(${rgb},0.16);color:rgb(${rgb})">${calEventTimeLabel(ev)}</span>
         </div>
       </div>`;
 }
@@ -121,7 +122,12 @@ export function renderTodayTimeline(tasks, calEvents = [], projects = [], doneCo
         .map((t) => renderTaskCard(t, projectMap))
     );
   } else {
-    parts.push('<div class="empty-state extra-empty">+αのタスクはありません</div>');
+    // +αが0件でもドラッグの受け皿になるよう、data-task-id無し（ドラッグ開始対象外）の
+    // .task-row を置く。drag.js の隣接行判定にはこの行も含まれるため、
+    // ここへドロップすると priority: "extra" を継承できる。
+    parts.push(
+      '<div class="task-row extra-drop-zone" data-priority="extra" data-sort-key="Infinity"><div class="empty-state extra-empty">+αのタスクはありません</div></div>'
+    );
   }
 
   if (done.length) {
