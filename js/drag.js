@@ -1,8 +1,10 @@
-// 今日タスクリストの長押しドラッグ並び替え。
+// 今日タスクリストの長押しドラッグ並び替え。プロジェクト内タスクにも汎用利用される。
 // - 対象: data-task-id を持つ .task-row のみ（カレンダー予定は無視）
-// - 開始判定: 400ms 長押し中に 6px 以上動いたらキャンセル
+// - 開始判定: 400ms 長押し中に横優勢の動きが 6px 以上あったらキャンセル（swipe.jsに譲る）。
+//   縦優勢・斜め方向の揺れはキャンセルしない（指の自然な手ぶれでドラッグが始まらなくなる不具合の対策）
 // - 並び替え中は他の要素のクリック（タップ編集・完了切替）を抑制
 // - 確定時: 隣接2要素の order の中間値を採用、現在の要素の order を更新
+// - isDragActive(): ジェスチャー進行中はFirestore更新起点の再描画を止めたいapp.js側から参照する
 
 import { updateTask } from "./db.js";
 
@@ -10,6 +12,12 @@ const LONG_PRESS_MS = 400;
 const MOVE_TOLERANCE = 6;
 
 let activeAttaches = [];
+// 現在進行中（長押し待ち含む）のジェスチャー数。0より大きい間はレンダリングを止めたい
+// （app.jsのrequestRenderが参照する）。
+let activeGestureCount = 0;
+export function isDragActive() {
+  return activeGestureCount > 0;
+}
 
 // listContainer: .task-list-pad（子に .task-row が並ぶ）
 // getTaskById: state.tasks から id でタスクを引く関数（order値の参照用）
@@ -33,6 +41,7 @@ export function attachDragSort(listContainer, getTaskById, rowSelector = ".task-
     if (!state.waiting) return;
     clearTimeout(state.waiting.timer);
     state.waiting = null;
+    activeGestureCount = Math.max(0, activeGestureCount - 1);
   }
 
   function onPointerDown(e) {
@@ -49,6 +58,7 @@ export function attachDragSort(listContainer, getTaskById, rowSelector = ".task-
       // マウスは長押し不要（少し動かしたら即ドラッグ）。タッチ/ペンは長押しで開始。
       timer: isMouse ? null : setTimeout(() => beginDrag(e), LONG_PRESS_MS),
     };
+    activeGestureCount++;
   }
 
   function beginDrag(originEvent) {
@@ -107,7 +117,11 @@ export function attachDragSort(listContainer, getTaskById, rowSelector = ".task-
           else cancelWait();
         }
       } else if (Math.hypot(dx, dy) > MOVE_TOLERANCE) {
-        // タッチ/ペン: 長押し前に動いたらキャンセル（スクロール/スワイプ優先）
+        // タッチ/ペン: 横優勢の動きのみキャンセル（スワイプ削除に譲る）。
+        // 縦優勢や斜め方向は指の自然な揺れの範囲として長押しタイマーを継続させる
+        // （横優勢判定のみでキャンセルすると、縦ドラッグ意図でも僅かな横ぶれで
+        // タイマーが止まり「たまにドラッグが始まらない」不具合の原因になっていた）。
+        if (Math.abs(dy) >= Math.abs(dx)) return;
         cancelWait();
       }
       return;
@@ -159,6 +173,7 @@ export function attachDragSort(listContainer, getTaskById, rowSelector = ".task-
     const newIndex = newOrderRows.indexOf(d.el);
     if (newIndex < 0) {
       state.dragging = null;
+      activeGestureCount = Math.max(0, activeGestureCount - 1);
       return;
     }
     const prev = newOrderRows[newIndex - 1];
@@ -169,6 +184,7 @@ export function attachDragSort(listContainer, getTaskById, rowSelector = ".task-
     );
     const extraChanges = computeExtra ? computeExtra(prev, next) : {};
     state.dragging = null;
+    activeGestureCount = Math.max(0, activeGestureCount - 1);
     // タップ抑制のため少し待ってからイベント有効化（次の onclick を無視）
     suppressNextClick();
     try {
@@ -210,6 +226,7 @@ export function attachDragSort(listContainer, getTaskById, rowSelector = ".task-
       state.dragging.placeholder?.remove();
       state.dragging = null;
       document.body.classList.remove("dragging-task");
+      activeGestureCount = Math.max(0, activeGestureCount - 1);
     }
   };
   activeAttaches.push(detach);

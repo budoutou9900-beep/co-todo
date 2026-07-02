@@ -3,6 +3,8 @@
 スマホ・PC両方から同じURLでアクセスでき、Firestoreでリアルタイムに同期するタスク管理アプリ。
 デザインは「静けさ・光・余白・集中」をキーワードにしたダークモードUI（[Personal task management app UI.zip](./Personal%20task%20management%20app%20UI.zip) のデザインリファレンスに準拠）。
 
+詳細ドキュメント: [機能仕様](docs/FEATURES.md) / [データモデル](docs/DATA_MODEL.md) / [アーキテクチャ](docs/ARCHITECTURE.md) / [CLAUDE.md](CLAUDE.md)（Claude Code向けガイド）
+
 ## セットアップ
 
 ### 1. Firebase プロジェクトを作成
@@ -95,10 +97,12 @@ Google Cloud Console 側でリダイレクト先の登録が必要です。
 
 ## データモデル（Firestore）
 
+詳細は [docs/DATA_MODEL.md](docs/DATA_MODEL.md) を参照。概要:
+
 ```
 users/{uid}/tasks/{taskId}
-  title, date, time, duration, location("lab"|"home"|"transit"|null),
-  projectId, done, repeat{type, days, interval}, autoResetDate,
+  title, date, done, order, priority("today"|"extra"),
+  projectId, repeat{type, days, interval},
   createdAt, updatedAt
 
 users/{uid}/projects/{projectId}

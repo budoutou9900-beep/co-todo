@@ -7,10 +7,12 @@ import {
   todayStr,
   toDateStr,
   escapeHtml,
+  hexToRgb,
 } from "./utils.js";
 
 const NEUTRAL = "#5a5a72";
 const EVENT_COLOR_FALLBACK = "#6b7a99"; // カレンダー色が取得できない場合のフォールバック
+const EVENT_COLOR_FALLBACK_RGB = hexToRgb(EVENT_COLOR_FALLBACK).join(",");
 const DOW_HEAD = ["日", "月", "火", "水", "木", "金", "土"];
 const MAX_CHIPS = 3; // 1セルに出すチップの最大数
 
@@ -151,12 +153,16 @@ export function renderWeekView(tasks, weekStart, projects = [], eventsByDate = {
     const isToday = dateStr === today;
     const label = `${dowJp(dateStr)} · ${dayNum(dateStr)}`;
     const labelColor = isToday ? "rgba(149,128,255,0.85)" : "rgba(240,240,245,0.32)";
+    // Googleカレンダー予定はタスクと見分けがつくよう、丸ドットではなくカレンダーアイコン＋
+    // 専用の背景トーン（.week-event-row）で区別する（today.jsのrenderCalEventCardと同系統）。
     const eventRows = dayEvents
       .map((ev) => {
-        const color = ev.color || EVENT_COLOR_FALLBACK;
+        const rgb = ev.color ? hexToRgb(ev.color).join(",") : EVENT_COLOR_FALLBACK_RGB;
         return `
-        <div class="week-task-row" style="cursor:default">
-          <div class="week-task-dot" style="background:${color}"></div>
+        <div class="week-task-row week-event-row" style="cursor:default;background:rgba(${rgb},0.08)">
+          <div class="week-event-icon" style="background:rgba(${rgb},0.18)">
+            <svg width="10" height="10" viewBox="0 0 22 22" fill="none"><rect x="3" y="5" width="16" height="14" rx="2" stroke="rgb(${rgb})" stroke-width="1.8"/><path d="M3 9h16M8 3v4M14 3v4" stroke="rgb(${rgb})" stroke-width="1.8" stroke-linecap="round"/></svg>
+          </div>
           <div class="week-task-title" style="color:#f0f0f5">${escapeHtml(ev.summary)}</div>
         </div>`;
       })

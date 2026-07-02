@@ -178,6 +178,8 @@ body.dragging-task .task-row[data-task-id], body.dragging-task .subtask-row[data
 .week-task-proj { font-size: 10.5px; font-weight: 500; flex-shrink: 0; max-width: 35%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .week-task-row:last-child { border-bottom: none; }
 .week-task-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.week-event-row { border-bottom-color: rgba(255, 255, 255, 0.03); }
+.week-event-icon { width: 18px; height: 18px; border-radius: 6px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .week-task-title { flex: 1; font-size: 13px; }
 .week-task-time { font-size: 10px; color: rgba(240, 240, 245, 0.32); }
 

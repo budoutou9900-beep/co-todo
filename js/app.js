@@ -2,11 +2,11 @@ import { watchAuth, signIn, signOutUser } from "./auth.js";
 import { subscribeToTasks, subscribeToProjects, addTask, updateTask, addProject, updateProject, deleteTask, deleteProject } from "./db.js";
 import { completeTask } from "./tasks.js";
 import { renderWeekView, renderMonthCalendar } from "./calendar.js";
-import { renderTodayTimeline } from "./timeline.js";
-import { attachDragSort, detachDragSort } from "./drag.js";
-import { attachSwipeToDelete, detachAllSwipe } from "./swipe.js";
+import { renderTodayTimeline, taskSortKey } from "./timeline.js";
+import { attachDragSort, detachDragSort, isDragActive } from "./drag.js";
+import { attachSwipeToDelete, detachAllSwipe, isSwipeActive } from "./swipe.js";
 import { isConnected, connectCalendar, disconnectCalendar, fetchEvents, fetchEventsRange, getLastFetchInfo } from "./calendar-sync.js";
-import { hexToRgb, todayStr, toDateStr, formatHeaderDate, startOfWeek, addDays, escapeHtml } from "./utils.js";
+import { hexToRgb, todayStr, toDateStr, formatHeaderDate, addDays, escapeHtml } from "./utils.js";
 
 const state = {
   user: null,
@@ -14,7 +14,6 @@ const state = {
   projects: [],
   view: "today",
   selectedDate: todayStr(),
-  weekStart: startOfWeek(todayStr()),
   ritual: { open: false, picks: [] },
   sheet: { open: false, editingId: null, draft: null },
   toastMsg: null,
@@ -177,12 +176,22 @@ function renderScreen() {
 // 繰り返しタスクの追加など）短時間に連続発火する。そのたびに画面全体を
 // 作り直すと checkdraw アニメが途中で再起動して「ぶれる」ため、
 // requestAnimationFrame で1フレームに集約して1回だけ描画する。
+// また、ドラッグ並び替え/スワイプ削除のジェスチャー中に自分と無関係な
+// Firestore更新（他デバイスでの編集、期限切れ自動繰り上げ等）が飛んでくると
+// wireScreenEvents() 内での detachDragSort/attachSwipeToDelete の再アタッチが
+// 進行中のジェスチャーを内部状態ごと吹き飛ばしてしまう（スマホでたまにタスクの
+// ドラッグが反応しなくなる不具合の一因）。ジェスチャー中は再描画を保留し、
+// 終了を待ってから反映する。
 let renderQueued = false;
 function requestRender() {
   if (renderQueued) return;
   renderQueued = true;
   requestAnimationFrame(() => {
     renderQueued = false;
+    if (isDragActive() || isSwipeActive()) {
+      requestRender(); // ジェスチャー終了まで次フレームに持ち越す
+      return;
+    }
     renderScreen();
   });
 }
@@ -229,10 +238,12 @@ function renderTodayScreen() {
 }
 
 function renderWeekScreen() {
-  const { html, total } = renderWeekView(state.tasks, state.weekStart, state.projects, state.weekCalEventsByDate);
-  const weekEndDay = addDays(state.weekStart, 6);
-  const rangeLabel = `${new Date(state.weekStart + "T00:00:00").getMonth() + 1}月 ${new Date(
-    state.weekStart + "T00:00:00"
+  // 「今週」は暦週（月〜日等）ではなく、常に「今日から7日間」のローリング表示にする。
+  const weekStart = todayStr();
+  const { html, total } = renderWeekView(state.tasks, weekStart, state.projects, state.weekCalEventsByDate);
+  const weekEndDay = addDays(weekStart, 6);
+  const rangeLabel = `${new Date(weekStart + "T00:00:00").getMonth() + 1}月 ${new Date(
+    weekStart + "T00:00:00"
   ).getDate()}–${new Date(weekEndDay + "T00:00:00").getDate()}`;
   const monthCal = renderMonthCalendar(
     state.tasks,
@@ -261,7 +272,9 @@ function renderWeekScreen() {
 function renderProjectsScreen() {
   const cards = state.projects
     .map((p) => {
-      const subs = state.tasks.filter((t) => t.projectId === p.id);
+      const subs = state.tasks
+        .filter((t) => t.projectId === p.id)
+        .sort((a, b) => taskSortKey(a) - taskSortKey(b));
       const doneN = subs.filter((t) => t.done).length;
       const pct = subs.length ? Math.round((doneN / subs.length) * 100) : 0;
       const [r, g, b] = hexToRgb(p.color || "#9580ff");

@@ -13,7 +13,7 @@ function colorOf(task, projectMap) {
 }
 
 // 並び替え用のソートキー: order が明示されていればそれ、無ければ createdAt
-function taskSortKey(t) {
+export function taskSortKey(t) {
   return typeof t.order === "number" ? t.order : t.createdAt?.toMillis ? t.createdAt.toMillis() : 0;
 }
 

@@ -3,12 +3,19 @@
 // - 一定量左にスワイプして指を離すと開いた状態を保持、削除ボタンのタップで onDelete
 // - 別の場所をタップ／別カードをスワイプすると閉じる
 // 今日タブのタスク行（縦ドラッグ並び替えと併用）とプロジェクトカードに適用。
+// - isSwipeActive(): ジェスチャー進行中はFirestore更新起点の再描画を止めたいapp.js側から参照する
 
 const OPEN_W = 80; // 削除ボタンの表示幅(px)
 const DECIDE_PX = 6; // 方向を判定する移動量
 const COMMIT_PX = 38; // これ以上スワイプして離すと開いたままにする
 
 let detachers = [];
+// 進行中のジェスチャー数。0より大きい間はFirestore更新起点の再描画を止めたい
+// （app.jsのrequestRenderが参照する。drag.jsのisDragActiveと同じ考え方）。
+let activeGestureCount = 0;
+export function isSwipeActive() {
+  return activeGestureCount > 0;
+}
 
 // container: 行が並ぶスクロール要素
 // opts: { rowSelector, getId(row), onDelete(id,row), foregroundSelector? }
@@ -86,6 +93,7 @@ export function attachSwipeToDelete(container, opts) {
       baseX: openRow === row ? -OPEN_W : 0,
       dir: null,
     };
+    activeGestureCount++;
   }
 
   function onPointerMove(e) {
@@ -98,6 +106,7 @@ export function attachSwipeToDelete(container, opts) {
       g.dir = Math.abs(dx) > Math.abs(dy) ? "h" : "v";
       if (g.dir === "v") {
         g = null;
+        activeGestureCount = Math.max(0, activeGestureCount - 1);
         return;
       }
     }
@@ -111,6 +120,7 @@ export function attachSwipeToDelete(container, opts) {
     if (!g) return;
     const cur = g;
     g = null;
+    activeGestureCount = Math.max(0, activeGestureCount - 1);
     if (cur.dir !== "h") {
       // 開いているカード本体をタップしたら閉じる（編集は開かない）
       if (cur.wasOpen) {
@@ -157,6 +167,10 @@ export function attachSwipeToDelete(container, opts) {
     document.removeEventListener("pointerup", onPointerUp);
     document.removeEventListener("pointercancel", onPointerUp);
     container.removeEventListener("click", onClickCapture, true);
+    if (g) {
+      g = null;
+      activeGestureCount = Math.max(0, activeGestureCount - 1);
+    }
   });
 }
 
