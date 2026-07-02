@@ -59,8 +59,14 @@ export function renderWeekStrip(tasks, selectedDate, projects = []) {
 
 // 月カレンダー（日曜始まりの6週グリッド）。
 // tasks: 全タスク / eventsByDate: { "YYYY-MM-DD": [ev,...] } / monthAnchor: 表示月の任意の日
-export function renderMonthCalendar(tasks, eventsByDate = {}, projects = [], monthAnchor) {
+// weekDetailDate: 今週タブでインライン表示中の日付（選択中セルのハイライトに使う）
+export function renderMonthCalendar(tasks, eventsByDate = {}, projects = [], monthAnchor, weekDetailDate = null) {
   const projectMap = new Map(projects.map((p) => [p.id, p]));
+  // プロジェクトの締切日 → プロジェクト。同日に複数件あれば先に見つかったものを優先。
+  const dueByDate = new Map();
+  for (const p of projects) {
+    if (p.dueDate && !dueByDate.has(p.dueDate)) dueByDate.set(p.dueDate, p);
+  }
   const today = todayStr();
   const anchor = new Date(monthAnchor + "T00:00:00");
   const year = anchor.getFullYear();
@@ -119,9 +125,30 @@ export function renderMonthCalendar(tasks, eventsByDate = {}, projects = [], mon
         )
         .join("") + (moreN > 0 ? `<div class="mc-more">+${moreN}</div>` : "");
 
+    // プロジェクトの締切日は、そのプロジェクトのカラーで日付バッジをハイライトする。
+    // 今日と重なる場合は今日バッジ（アクセントカラー）を残しつつ枠線で締切も分かるようにする。
+    const dueProject = dueByDate.get(dateStr);
+    let numClass = "mc-num";
+    let numStyle = `color:${numColor}`;
+    let numTitle = "";
+    if (dueProject) {
+      const [r, g, b] = hexToRgb(dueProject.color);
+      numTitle = ` title="${escapeHtml(dueProject.title)} の締切"`;
+      if (isToday) {
+        numClass += " mc-today";
+        numStyle = `color:#fff;border:2px solid ${dueProject.color}`;
+      } else {
+        numClass += " mc-due";
+        numStyle = `color:#fff;background:${dueProject.color};box-shadow:0 0 10px rgba(${r},${g},${b},0.55)`;
+      }
+    } else if (isToday) {
+      numClass += " mc-today";
+    }
+    const isSelected = dateStr === weekDetailDate;
+
     cells += `
-      <div class="mc-cell${inMonth ? "" : " mc-out"}" data-date="${dateStr}">
-        <div class="mc-num${isToday ? " mc-today" : ""}" style="color:${numColor}">${d.getDate()}</div>
+      <div class="mc-cell${inMonth ? "" : " mc-out"}${isSelected ? " mc-selected" : ""}" data-date="${dateStr}">
+        <div class="${numClass}" style="${numStyle}"${numTitle}>${d.getDate()}</div>
         <div class="mc-chips">${chips}</div>
       </div>`;
   }

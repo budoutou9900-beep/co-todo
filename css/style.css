@@ -38,7 +38,6 @@ button { font-family: inherit; }
 @keyframes checkdraw { from { stroke-dashoffset: 14; } to { stroke-dashoffset: 0; } }
 @keyframes sheetup { from { transform: translateY(100%); } to { transform: translateY(0); } }
 @keyframes fadein { from { opacity: 0; } to { opacity: 1; } }
-@keyframes ritualin { from { opacity: 0; transform: scale(1.04); } to { opacity: 1; transform: scale(1); } }
 @keyframes slidein { from { opacity: 0; transform: translateX(14px); } to { opacity: 1; transform: translateX(0); } }
 @keyframes floaty { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
 
@@ -49,7 +48,7 @@ button { font-family: inherit; }
   width: 100%;
   max-width: 440px;
   margin: 0;
-  height: 100dvh;
+  height: var(--app-height, 100dvh);
   background: var(--bg);
   position: relative;
   overflow: hidden;
@@ -103,9 +102,6 @@ button { font-family: inherit; }
 .week-strip-dots { display: flex; gap: 2px; height: 4px; align-items: center; }
 .week-strip-dot { width: 3.5px; height: 3.5px; border-radius: 50%; }
 
-.first-btn { width: 40px; height: 40px; border-radius: 11px; background: rgba(149, 128, 255, 0.12); border: 1px solid rgba(149, 128, 255, 0.3); display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; transition: background 0.18s ease, transform 0.12s ease; }
-.first-btn:active { background: rgba(149, 128, 255, 0.22); transform: scale(0.96); }
-
 .timeline-label-row { padding: 2px 22px 8px; flex-shrink: 0; display: flex; justify-content: space-between; align-items: center; }
 .timeline-label { font-size: 10.5px; font-weight: 500; letter-spacing: 0.8px; color: rgba(240, 240, 245, 0.3); text-transform: uppercase; }
 .timeline-done { font-size: 10.5px; color: rgba(149, 128, 255, 0.5); font-weight: 500; }
@@ -122,7 +118,7 @@ body.dragging-task { user-select: none; -webkit-user-select: none; }
 body.dragging-task .task-row[data-task-id], body.dragging-task .subtask-row[data-task-id] { transition: transform 0.18s ease; }
 .task-card { flex: 1; border-radius: 11px; padding: 9px 12px; transition: background 0.3s ease, border 0.3s ease; }
 .task-card-1line { display: flex; align-items: center; gap: 10px; }
-.task-check { width: 20px; height: 20px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; transition: background 0.25s ease, border 0.25s ease, box-shadow 0.25s ease; cursor: pointer; }
+.task-check { width: 24px; height: 24px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; transition: background 0.25s ease, border 0.25s ease, box-shadow 0.25s ease; cursor: pointer; }
 .task-title-1line { flex: 1; min-width: 0; font-size: 13.5px; font-weight: 500; line-height: 1.35; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; word-break: break-word; transition: color 0.3s ease; }
 .task-proj-chip { font-size: 10px; font-weight: 500; padding: 2px 8px; border-radius: 99px; white-space: nowrap; flex-shrink: 0; max-width: 40%; overflow: hidden; text-overflow: ellipsis; }
 .task-repeat-icon { font-size: 11px; color: rgba(240, 240, 245, 0.35); flex-shrink: 0; }
@@ -141,10 +137,10 @@ body.dragging-task .task-row[data-task-id], body.dragging-task .subtask-row[data
 .extra-section-title { font-size: 11px; font-weight: 600; letter-spacing: 0.6px; color: rgba(212, 165, 88, 0.75); }
 .extra-drop-zone { cursor: default; margin-bottom: 0; }
 
-/* プロジェクトタブ: 長期/短期グループ見出し */
-.project-group-header { display: flex; align-items: center; gap: 8px; margin: 18px 2px 10px; padding: 6px 2px; }
-.project-group-header:first-child { margin-top: 4px; }
-.project-group-title { font-size: 11px; font-weight: 600; letter-spacing: 0.6px; color: rgba(240, 240, 245, 0.4); text-transform: uppercase; }
+/* プロジェクトタブ: 長期/短期切り替え */
+.project-tab-toggle { display: flex; gap: 8px; margin: 0 16px 14px; }
+.project-tab-opt { flex: 1; display: flex; align-items: center; justify-content: center; gap: 7px; padding: 10px; border-radius: 12px; background: var(--surface3); border: 1px solid var(--border); font-size: 13px; font-weight: 500; color: rgba(240, 240, 245, 0.5); cursor: pointer; }
+.project-tab-opt-active { background: rgba(149, 128, 255, 0.16); border-color: rgba(149, 128, 255, 0.4); color: #b3a3ff; font-weight: 600; }
 .project-group-count { font-size: 10.5px; font-weight: 600; color: rgba(149, 128, 255, 0.7); background: rgba(149, 128, 255, 0.14); border-radius: 99px; padding: 1px 8px; }
 
 /* 左スワイプ削除 */
@@ -165,8 +161,12 @@ body.dragging-task .task-row[data-task-id], body.dragging-task .subtask-row[data
 .mc-cell:nth-child(7n + 1) { border-left: none; }
 .mc-cell:active { background: rgba(149, 128, 255, 0.08); }
 .mc-out { background: rgba(0, 0, 0, 0.18); }
+/* 今週タブ内で日付詳細を表示中のセル */
+.mc-cell.mc-selected { background: rgba(149, 128, 255, 0.14); box-shadow: inset 0 0 0 1px rgba(149, 128, 255, 0.4); }
 .mc-num { font-size: 11.5px; font-weight: 600; text-align: right; line-height: 1.4; }
 .mc-num.mc-today { align-self: flex-end; min-width: 18px; height: 18px; border-radius: 50%; background: var(--accent); display: flex; align-items: center; justify-content: center; box-shadow: 0 0 10px rgba(149, 128, 255, 0.55); }
+/* プロジェクトの締切日: そのプロジェクトのカラーで日付をハイライト */
+.mc-num.mc-due { align-self: flex-end; min-width: 18px; height: 18px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
 .mc-chips { display: flex; flex-direction: column; gap: 2px; }
 .mc-chip { font-size: 8.5px; line-height: 1.3; color: #fff; padding: 1px 3px; border-radius: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .mc-more { font-size: 8.5px; color: rgba(240, 240, 245, 0.4); padding-left: 2px; }
@@ -174,12 +174,17 @@ body.dragging-task .task-row[data-task-id], body.dragging-task .subtask-row[data
 .empty-state { text-align: center; padding: 50px 20px; color: rgba(240, 240, 245, 0.3); font-size: 13px; animation: fadein 0.3s; }
 .extra-empty { padding: 14px 2px; }
 
+/* 今週タブ: 月カレンダーの日付タップで開くインライン日別詳細 */
+.week-detail-header { display: flex; justify-content: space-between; align-items: center; padding: 4px 16px 6px; animation: fadein 0.2s ease; }
+.week-detail-title { font-size: 16px; font-weight: 600; }
+.week-detail-close { width: 28px; height: 28px; border-radius: 50%; background: rgba(255, 255, 255, 0.07); display: flex; align-items: center; justify-content: center; font-size: 12px; color: rgba(240, 240, 245, 0.6); cursor: pointer; }
+
 /* filters / week view */
 .week-group { margin-bottom: 16px; animation: slidein 0.3s ease; }
 .week-group-label-row { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; padding-left: 2px; }
 .week-group-label { font-size: 11px; font-weight: 600; letter-spacing: 0.5px; }
 .today-badge { font-size: 9.5px; padding: 1px 7px; border-radius: 99px; background: rgba(149, 128, 255, 0.18); color: rgba(149, 128, 255, 0.85); font-weight: 600; }
-.week-group-card { background: var(--surface); border-radius: 13px; overflow: hidden; border: 1px solid var(--border-soft); }
+.week-group-card { background: var(--surface); border-radius: 13px; overflow: hidden; border: 1px solid var(--border-soft); margin-left: 14px; }
 .week-task-row { padding: 10px 13px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid rgba(255, 255, 255, 0.04); cursor: pointer; }
 .week-task-proj { font-size: 10.5px; font-weight: 500; flex-shrink: 0; max-width: 35%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .week-task-row:last-child { border-bottom: none; }
@@ -190,14 +195,13 @@ body.dragging-task .task-row[data-task-id], body.dragging-task .subtask-row[data
 .week-task-time { font-size: 10px; color: rgba(240, 240, 245, 0.32); }
 
 /* projects */
-.project-card { background: var(--surface); border-radius: 18px; padding: 18px; margin-bottom: 12px; border: 1px solid rgba(255, 255, 255, 0.06); position: relative; overflow: hidden; }
+.project-card { background: var(--surface); border-radius: 14px; padding: 12px; margin-bottom: 8px; border: 1px solid rgba(255, 255, 255, 0.06); position: relative; overflow: hidden; }
 .project-top-bar { position: absolute; top: 0; left: 0; right: 0; height: 3px; }
 .project-header-row { display: flex; justify-content: space-between; align-items: flex-start; cursor: pointer; }
-.project-name { font-size: 15.5px; font-weight: 600; margin-bottom: 3px; }
-.project-sub { font-size: 11.5px; color: rgba(240, 240, 245, 0.38); }
-.project-pct { font-size: 22px; font-weight: 700; line-height: 1; }
+.project-name { font-size: 14px; font-weight: 600; margin-bottom: 3px; }
+.project-pct { font-size: 18px; font-weight: 700; line-height: 1; }
 .project-pct-label { font-size: 10px; color: rgba(240, 240, 245, 0.3); margin-top: 2px; }
-.project-bar-track { height: 5px; background: rgba(255, 255, 255, 0.08); border-radius: 99px; margin: 13px 0; overflow: hidden; }
+.project-bar-track { height: 4px; background: rgba(255, 255, 255, 0.08); border-radius: 99px; margin: 8px 0; overflow: hidden; }
 .project-bar-fill { height: 100%; border-radius: 99px; transition: width 0.4s ease; }
 .project-footer-row { display: flex; justify-content: space-between; align-items: center; }
 .project-footer-left { display: flex; gap: 16px; }
@@ -216,38 +220,12 @@ body.dragging-task .task-row[data-task-id], body.dragging-task .subtask-row[data
 /* tab bar */
 .tab-bar-wrap { flex-shrink: 0; position: relative; z-index: 30; }
 .tab-bar-fade { position: absolute; top: -30px; left: 0; right: 0; height: 30px; background: linear-gradient(transparent, var(--bg)); pointer-events: none; }
-.ritual-fab { position: absolute; right: 20px; top: -62px; width: 50px; height: 50px; border-radius: 50%; background: linear-gradient(140deg, #d9ad5c, #b87d22); display: flex; align-items: center; justify-content: center; box-shadow: 0 0 24px rgba(212, 165, 88, 0.5), 0 4px 14px rgba(0, 0, 0, 0.55); animation: floaty 4s ease-in-out infinite; cursor: pointer; }
 .add-fab { position: absolute; right: 20px; top: -62px; width: 50px; height: 50px; border-radius: 50%; background: linear-gradient(140deg, #9a82ff, #7b5fff); display: flex; align-items: center; justify-content: center; box-shadow: 0 0 24px rgba(149, 128, 255, 0.45), 0 4px 14px rgba(0, 0, 0, 0.55); animation: floaty 4s ease-in-out infinite; cursor: pointer; }
 /* プロジェクト追加FAB：タスク追加＋の左隣 */
 .add-project-fab { right: 84px; }
 .tab-bar { background: #121219; border-top: 1px solid var(--border); display: flex; padding: 10px 0 max(34px, calc(env(safe-area-inset-bottom) + 6px)); }
 .tab-item { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; cursor: pointer; }
 .tab-label { font-size: 9.5px; }
-
-/* ritual overlay */
-.ritual-overlay { position: absolute; inset: 0; z-index: 60; background: var(--bg); display: flex; flex-direction: column; animation: ritualin 0.35s ease; overflow: hidden; }
-.ritual-glow { position: absolute; top: -70px; left: 50%; transform: translateX(-50%); width: 340px; height: 300px; border-radius: 50%; background: radial-gradient(circle, rgba(212, 165, 88, 0.16) 0%, transparent 70%); pointer-events: none; }
-.ritual-top-pad { height: max(54px, env(safe-area-inset-top)); flex-shrink: 0; }
-.ritual-header { padding: 0 22px; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
-.ritual-eyebrow { font-size: 11px; font-weight: 500; letter-spacing: 1.3px; color: rgba(212, 165, 88, 0.6); }
-.ritual-close { width: 30px; height: 30px; border-radius: 50%; background: rgba(255, 255, 255, 0.07); display: flex; align-items: center; justify-content: center; cursor: pointer; }
-.ritual-step { flex: 1; display: flex; flex-direction: column; min-height: 0; animation: fadein 0.3s ease; }
-.ritual-greeting-block { padding: 20px 26px 0; flex-shrink: 0; }
-.ritual-greeting { font-size: 31px; font-weight: 300; line-height: 1.2; letter-spacing: -0.5px; }
-.ritual-sub { font-size: 15px; color: rgba(240, 240, 245, 0.42); margin-top: 9px; }
-.ritual-locations { padding: 24px 20px 0; display: flex; flex-direction: column; gap: 11px; }
-.ritual-spacer { flex: 1; }
-.ritual-btn-wrap { padding: 16px 20px max(34px, env(safe-area-inset-bottom)); flex-shrink: 0; }
-.ritual-btn { border-radius: 16px; padding: 16px; text-align: center; cursor: pointer; transition: all 0.25s ease; }
-.ritual-btn-title { font-size: 16px; font-weight: 600; color: #fff; }
-.ritual-btn-sub { font-size: 11px; color: rgba(255, 255, 255, 0.6); margin-top: 3px; }
-.ritual-step2-title { font-size: 25px; font-weight: 300; line-height: 1.25; letter-spacing: -0.3px; }
-.ritual-candidates-scroll { flex: 1; overflow-y: auto; padding: 20px 20px 0; min-height: 0; }
-.cand-card { background: var(--surface); border-radius: 13px; padding: 12px 14px; display: flex; align-items: center; gap: 11px; margin-bottom: 9px; cursor: pointer; transition: all 0.2s ease; }
-.cand-check { width: 21px; height: 21px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
-.cand-title { font-size: 13.5px; font-weight: 500; color: var(--text); }
-.cand-meta { font-size: 10.5px; color: rgba(240, 240, 245, 0.32); margin-top: 2px; }
-.pick-count-label { text-align: center; margin-top: 14px; font-size: 11px; color: rgba(240, 240, 245, 0.28); }
 
 /* bottom sheet */
 .sheet-overlay { position: absolute; inset: 0; z-index: 70; display: flex; flex-direction: column; justify-content: flex-end; }

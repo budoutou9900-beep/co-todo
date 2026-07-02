@@ -14,7 +14,7 @@ const state = {
   projects: [],
   view: "today",
   selectedDate: todayStr(),
-  ritual: { open: false, picks: [] },
+  projectTab: "short",
   sheet: { open: false, editingId: null, draft: null },
   toastMsg: null,
   unsubTasks: null,
@@ -27,16 +27,33 @@ const state = {
   weekCalAnchor: todayStr(), // 表示中の月の基準日
   weekCalEventsByDate: {}, // { "YYYY-MM-DD": [ev,...] }
   weekCalLoadedMonth: null, // 取得済みの月キー "YYYY-MM"
+  weekDetailDate: null, // 今週タブ内で選択中の日付詳細（月カレンダーの日付タップで設定）
 };
 
 const PROJECT_COLORS = [
   "#9580ff", "#5b8aff", "#4ecf8a", "#d4a558", "#ff7c5c",
   "#ff5c9e", "#5cd6ff", "#c5e05c", "#e0985c", "#8a5cff",
-  "#5cffcf", "#ff5c5c",
+  "#5cffcf", "#ff5c5c", "#ffd166", "#7ed957", "#42a5f5",
+  "#7986cb", "#e066ff", "#ff85a2", "#26c6da", "#a0785a",
 ];
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
+
+// ---------- viewport height (iOS keyboard対策) ----------
+// iOS Safari/PWAでは、入力欄フォーカスでキーボードが開閉した際に100dvhの再計算が
+// 遅延・失敗することがあり、キーボードを閉じても下部タブバーの位置がずれたままになる
+// 不具合があった。visualViewportの実測値を--app-heightに反映し、#app-rootの高さを
+// JS側で明示的に追従させることで解消する。
+function syncAppHeight() {
+  const h = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+  document.documentElement.style.setProperty("--app-height", `${h}px`);
+}
+if (window.visualViewport) {
+  window.visualViewport.addEventListener("resize", syncAppHeight);
+}
+window.addEventListener("orientationchange", syncAppHeight);
+syncAppHeight();
 
 let toastTimer = null;
 function flash(msg) {
@@ -123,10 +140,6 @@ $$(".tab-item").forEach((el) => {
     if (state.view === "week") refreshWeekCalendar();
   });
 });
-function openRitualFromTab() {
-  state.ritual = { open: true, picks: [] };
-  renderRitual();
-}
 
 function updateTabBar() {
   const active = "#9580ff";
@@ -204,24 +217,14 @@ function renderTodayScreen() {
   const calChip = state.calendarConnected
     ? `<div id="cal-toggle" class="cal-chip on">📅 カレンダー</div>`
     : `<div id="cal-toggle" class="cal-chip">📅 連携</div>`;
-  // 月カレンダーの日付タップで今日以外の日を閲覧しているときは「戻る」を表示
-  const isDayDetail = state.selectedDate !== todayStr();
-  const headerAction = isDayDetail
-    ? `<div id="back-to-week-btn" class="first-btn" title="今日に戻る">
-        <svg width="18" height="18" viewBox="0 0 20 20" fill="none"><path d="M12.5 4l-6 6 6 6" stroke="#9580ff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      </div>`
-    : `<div id="first-btn" class="first-btn" title="First（今日始めるタスクを選ぶ）">
-        <svg width="20" height="20" viewBox="0 0 22 22" fill="none"><circle cx="11" cy="11" r="3.2" stroke="#9580ff" stroke-width="1.6"/><path d="M11 1.5v2M11 18.5v2M1.5 11h2M18.5 11h2M4.22 4.22l1.41 1.41M16.37 16.37l1.41 1.41M4.22 17.78l1.41-1.41M16.37 5.63l1.41-1.41" stroke="#9580ff" stroke-width="1.6" stroke-linecap="round"/></svg>
-      </div>`;
   return `
     <div class="screen">
       <div class="screen-header">
         <div style="display:flex;justify-content:space-between;align-items:flex-start">
           <div>
-            <div class="eyebrow">${isDayDetail ? "指定日" : "TODAY"}</div>
+            <div class="eyebrow">TODAY</div>
             <div class="title-lg">${formatHeaderDate(state.selectedDate)}</div>
           </div>
-          ${headerAction}
         </div>
       </div>
       <div class="timeline-label-row">
@@ -249,8 +252,32 @@ function renderWeekScreen() {
     state.tasks,
     state.weekCalEventsByDate,
     state.projects,
-    state.weekCalAnchor
+    state.weekCalAnchor,
+    state.weekDetailDate
   );
+  // 月カレンダーで日付をタップしたら、タブを切り替えずに今週タブ内でその日のタイムラインを見せる
+  let bodyHtml;
+  if (state.weekDetailDate) {
+    const d = state.weekDetailDate;
+    const dayTasks = state.tasks.filter((t) => t.date === d);
+    const doneN = dayTasks.filter((t) => t.done).length;
+    const events = state.weekCalEventsByDate[d] || [];
+    bodyHtml = `
+      <div class="week-detail-header">
+        <div class="week-detail-title">${formatHeaderDate(d)}</div>
+        <div class="week-detail-close" id="week-detail-close-btn">✕</div>
+      </div>
+      <div class="timeline-label-row">
+        <div class="timeline-label">タイムライン</div>
+        <div class="timeline-done">${doneN} / ${dayTasks.length} 完了</div>
+      </div>
+      <div class="task-list-pad">${renderTodayTimeline(dayTasks, events, state.projects, state.doneCollapsed)}</div>`;
+  } else {
+    bodyHtml = `
+      <div style="padding:0 16px">
+        ${html || '<div class="empty-state">該当するタスクはありません</div>'}
+      </div>`;
+  }
   return `
     <div class="screen">
       <div class="screen-header" style="padding-bottom:12px">
@@ -262,9 +289,7 @@ function renderWeekScreen() {
       </div>
       <div class="task-list-scroll scroll" style="padding:0 0 120px">
         ${monthCal}
-        <div style="padding:0 16px">
-          ${html || '<div class="empty-state">該当するタスクはありません</div>'}
-        </div>
+        ${bodyHtml}
       </div>
     </div>`;
 }
@@ -304,7 +329,6 @@ function renderProjectCard(p) {
       <div class="project-header-row" data-toggle-project="${p.id}">
         <div>
           <div class="project-name">${escapeHtml(p.title)}</div>
-          <div class="project-sub">${subs.length}個のタスク</div>
         </div>
         <div style="text-align:right">
           <div class="project-pct" style="color:${p.color}">${pct}%</div>
@@ -320,7 +344,7 @@ function renderProjectCard(p) {
             <div class="project-stat-val">${doneN} / ${subs.length}</div>
             <div class="project-stat-label">タスク完了</div>
           </div>
-          <div>
+          <div data-edit-project="${p.id}" style="cursor:pointer">
             <div class="project-due" style="color:${dueWarn ? "var(--warn)" : "rgba(240,240,245,0.65)"}">${
     p.dueDate || "—"
   }</div>
@@ -340,21 +364,35 @@ function renderProjectCard(p) {
   </div>`;
 }
 
+// 締切日の早い順（未設定は最後）に並べる比較関数。
+function byDueDate(a, b) {
+  if (!a.dueDate && !b.dueDate) return 0;
+  if (!a.dueDate) return 1;
+  if (!b.dueDate) return -1;
+  return a.dueDate < b.dueDate ? -1 : a.dueDate > b.dueDate ? 1 : 0;
+}
+
 function renderProjectsScreen() {
-  // 締切日から長期/短期を自動判定してグループ表示する（締切まで15日以上先=長期）。
-  const longTerm = state.projects.filter(isLongTermProject);
-  const shortTerm = state.projects.filter((p) => !isLongTermProject(p));
-  const groupHtml = (label, projects) =>
-    projects.length
-      ? `<div class="project-group-header"><span class="project-group-title">${label}</span><span class="project-group-count">${projects.length}</span></div>
-         ${projects.map(renderProjectCard).join("")}`
-      : "";
-  const cards = groupHtml("短期", shortTerm) + groupHtml("長期", longTerm);
+  // 締切日から長期/短期を自動判定し、タブで切り替えて表示する（締切まで15日以上先=長期）。
+  // 各グループ内は締切日の早い順（未設定は最後）に並べる。
+  const longTerm = state.projects.filter(isLongTermProject).sort(byDueDate);
+  const shortTerm = state.projects.filter((p) => !isLongTermProject(p)).sort(byDueDate);
+  const groups = { short: shortTerm, long: longTerm };
+  const activeProjects = groups[state.projectTab] || shortTerm;
+  const cards = activeProjects.map(renderProjectCard).join("");
+  const tabHtml = (tab, label, count) => `
+    <div class="project-tab-opt${state.projectTab === tab ? " project-tab-opt-active" : ""}" data-project-tab="${tab}">
+      <span>${label}</span><span class="project-group-count">${count}</span>
+    </div>`;
   return `
     <div class="screen">
       <div class="screen-header" style="padding-bottom:14px">
         <div class="eyebrow muted">PROJECTS</div>
         <div class="title-md">プロジェクト</div>
+      </div>
+      <div class="project-tab-toggle">
+        ${tabHtml("short", "短期", shortTerm.length)}
+        ${tabHtml("long", "長期", longTerm.length)}
       </div>
       <div class="task-list-scroll scroll" style="padding:0 16px 120px">
         ${cards || '<div class="empty-state">プロジェクトがありません</div>'}
@@ -366,12 +404,13 @@ function wireScreenEvents() {
   // today: calendar 連携トグル
   const calToggle = $("#cal-toggle");
   if (calToggle) calToggle.addEventListener("click", onCalendarToggle);
-  // today: First ボタン（朝の儀式モード起動）
-  const firstBtn = $("#first-btn");
-  if (firstBtn) firstBtn.addEventListener("click", openRitualFromTab);
-  // today: 日別詳細表示中の「戻る」ボタン → 今日タブ本来の表示（今週タブ）へ戻る
-  const backBtn = $("#back-to-week-btn");
-  if (backBtn) backBtn.addEventListener("click", () => goToDayDetail(todayStr(), "week"));
+  // week: 日別詳細インライン表示を閉じる
+  const weekDetailClose = $("#week-detail-close-btn");
+  if (weekDetailClose)
+    weekDetailClose.addEventListener("click", () => {
+      state.weekDetailDate = null;
+      renderScreen();
+    });
   // today: 完了済みセクションの開閉
   const doneToggle = $("#done-section-toggle");
   if (doneToggle)
@@ -379,6 +418,13 @@ function wireScreenEvents() {
       state.doneCollapsed = !state.doneCollapsed;
       renderScreen();
     });
+  // projects: 短期/長期タブ切り替え
+  $$("[data-project-tab]").forEach((el) => {
+    el.addEventListener("click", () => {
+      state.projectTab = el.dataset.projectTab;
+      renderScreen();
+    });
+  });
   // today: タスク行 = タップで編集、チェック領域だけ完了トグル
   $$(".task-row").forEach((el) => {
     const taskId = el.dataset.taskId;
@@ -398,9 +444,14 @@ function wireScreenEvents() {
     if (!taskId) return;
     el.addEventListener("click", () => openSheet({ taskId }));
   });
-  // week: 月カレンダーのセル = その日付の詳細（予定＋タスク）を表示 / 矢印 = 月移動
+  // week: 月カレンダーのセル = 今週タブ内にその日の詳細（予定＋タスク）をインライン表示。
+  // 同じ日をもう一度タップしたら閉じる。矢印 = 月移動
   $$(".mc-cell").forEach((el) => {
-    el.addEventListener("click", () => goToDayDetail(el.dataset.date, "today"));
+    el.addEventListener("click", () => {
+      const d = el.dataset.date;
+      state.weekDetailDate = state.weekDetailDate === d ? null : d;
+      renderScreen();
+    });
   });
   $$("[data-cal-nav]").forEach((el) => {
     el.addEventListener("click", () => {
@@ -421,6 +472,14 @@ function wireScreenEvents() {
       // Firestoreにも保存しないと、他のプロジェクトを編集した際の再購読で
       // open状態がリセットされてしまう（onSnapshotは毎回全件を返すため）。
       updateProject(id, { open: p.open }).catch((e) => console.error("開閉状態の保存に失敗:", e));
+    });
+  });
+  // projects: 締切表示のタップでプロジェクト編集モーダルを開く（開閉トグルとは独立させる）
+  $$("[data-edit-project]").forEach((el) => {
+    el.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const p = state.projects.find((x) => x.id === el.dataset.editProject);
+      if (p) openProjectModal(p);
     });
   });
   // projects: 小タスク = タップで編集、チェックだけ完了トグル
@@ -448,7 +507,7 @@ function wireScreenEvents() {
   // タブ切り替え時に前回のイベントをすべて解除
   detachAllSwipe();
   detachDragSort();
-  if (state.view === "today") {
+  if (state.view === "today" || (state.view === "week" && state.weekDetailDate)) {
     const pad = $(".task-list-pad");
     if (pad) {
       // 「今日中」「+α」セクションをまたいで移動したら priority も更新する。
@@ -622,29 +681,21 @@ async function refreshCalendar(dateStr, notify = false) {
   }
 }
 
-// カレンダーの日付タップ等から特定日の詳細（予定＋タスク）へ遷移する。
-// view: "today" ならタイムライン表示、"week" なら今週タブ（戻る用）に戻す。
-function goToDayDetail(dateStr, view) {
-  state.selectedDate = dateStr;
-  state.view = view;
-  renderScreen();
-  updateTabBar();
-  if (view === "today") refreshCalendar(dateStr);
-}
-
-// プロジェクト追加フォーム。window.prompt() はデスクトップ版（Electron）で
+// プロジェクトの追加・編集フォーム。window.prompt() はデスクトップ版（Electron）で
 // ネイティブ実装が無く即座にnullを返すため使えない（ボタンが反応しないように見える
-// 不具合の原因だった）。アプリ内モーダルに置き換えて全プラットフォームで動くようにする。
-function openAddProjectPrompt() {
+// 不具合の原因だった）。アプリ内モーダルで全プラットフォームで動くようにする。
+// existingProject を渡すと編集モード（タイトル・締切日をプリフィルし、保存でupdateProject）。
+function openProjectModal(existingProject = null) {
+  const isEdit = !!existingProject;
   const overlay = document.createElement("div");
   overlay.className = "confirm-overlay";
   overlay.innerHTML = `
     <div class="confirm-sheet">
-      <div class="confirm-title">プロジェクトを追加</div>
-      <input id="new-project-title" class="field-input add-project-input" placeholder="プロジェクト名を入力" autocomplete="off" />
+      <div class="confirm-title">${isEdit ? "プロジェクトを編集" : "プロジェクトを追加"}</div>
+      <input id="new-project-title" class="field-input add-project-input" placeholder="プロジェクト名を入力" autocomplete="off" value="${isEdit ? escapeHtml(existingProject.title) : ""}" />
       <div class="field-box-label" style="margin:14px 0 6px">締切日（任意）</div>
-      <input type="date" id="new-project-due" class="date-input-native add-project-input" />
-      <button class="confirm-btn-delete confirm-btn-primary" id="new-project-save" disabled>追加する</button>
+      <input type="date" id="new-project-due" class="date-input-native add-project-input" value="${isEdit ? existingProject.dueDate || "" : ""}" />
+      <button class="confirm-btn-delete confirm-btn-primary" id="new-project-save" ${isEdit ? "" : "disabled"}>${isEdit ? "保存する" : "追加する"}</button>
       <button class="confirm-btn-cancel">キャンセル</button>
     </div>`;
   const titleInput = overlay.querySelector("#new-project-title");
@@ -659,9 +710,14 @@ function openAddProjectPrompt() {
     const title = titleInput.value.trim();
     if (!title) return;
     overlay.remove();
-    const color = PROJECT_COLORS[state.projects.length % PROJECT_COLORS.length];
-    await addProject({ title, color, dueDate: dueInput.value || null, open: true });
-    flash("プロジェクトを追加しました");
+    if (isEdit) {
+      await updateProject(existingProject.id, { title, dueDate: dueInput.value || null });
+      flash("プロジェクトを更新しました");
+    } else {
+      const color = PROJECT_COLORS[state.projects.length % PROJECT_COLORS.length];
+      await addProject({ title, color, dueDate: dueInput.value || null, open: true });
+      flash("プロジェクトを追加しました");
+    }
   };
   saveBtn.addEventListener("click", save);
   titleInput.addEventListener("keydown", (e) => {
@@ -673,119 +729,6 @@ function openAddProjectPrompt() {
   overlay.addEventListener("click", (e) => { if (e.target === overlay) overlay.remove(); });
   document.getElementById("app-root").appendChild(overlay);
   titleInput.focus();
-}
-
-// ---------- First（簡略化儀式モード） ----------
-// 候補タスク（今日 or 日付なし、かつ未完了）から最大3つを選び、
-// 「今日」スタートで日付を今日に揃えるシンプル版。
-function closeRitual() {
-  state.ritual.open = false;
-  renderRitual();
-}
-
-function renderRitual() {
-  const c = $("#ritual-container");
-  if (!state.ritual.open) {
-    c.innerHTML = "";
-    return;
-  }
-  c.innerHTML = renderRitualScreen();
-  wireRitualEvents();
-}
-
-function renderRitualScreen() {
-  const today = todayStr();
-  const projectMap = new Map(state.projects.map((p) => [p.id, p]));
-  // 候補: 未完了 かつ (日付なし or 今日)
-  const candidates = state.tasks.filter(
-    (t) => !t.done && (t.date === today || !t.date)
-  );
-  const picks = state.ritual.picks;
-  const cards = candidates
-    .map((t) => {
-      const sel = picks.includes(t.id);
-      const full = picks.length >= 3 && !sel;
-      const project = t.projectId ? projectMap.get(t.projectId) : null;
-      const color = project?.color || "#9580ff";
-      const [r, g, b] = hexToRgb(color);
-      return `
-      <div class="cand-card" data-cand-id="${t.id}" style="border:1px solid ${sel ? `rgba(${r},${g},${b},0.5)` : "rgba(255,255,255,0.06)"};opacity:${full ? 0.45 : 1}">
-        <div class="cand-check" style="${sel ? `background:${color}` : "border:1.5px solid rgba(255,255,255,0.2)"}">${
-        sel
-          ? '<svg width="11" height="9" viewBox="0 0 11 9" fill="none"><path d="M1 4.5l3 3 6-6.5" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>'
-          : ""
-      }</div>
-        <div style="flex:1">
-          <div class="cand-title">${escapeHtml(t.title)}</div>
-          ${project ? `<div class="cand-meta">${escapeHtml(project.title)}</div>` : ""}
-        </div>
-      </div>`;
-    })
-    .join("");
-  const startStyle = picks.length
-    ? "background:linear-gradient(135deg,#9a82ff,#7b5fff);box-shadow:0 0 26px rgba(149,128,255,0.38)"
-    : "background:rgba(149,128,255,0.2)";
-  return `
-    <div class="ritual-overlay">
-      <div class="ritual-glow"></div>
-      <div class="ritual-top-pad"></div>
-      <div class="ritual-header">
-        <div class="ritual-eyebrow">FIRST</div>
-        <div class="ritual-close" id="ritual-close-btn"><svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M1.5 1.5l9 9M10.5 1.5l-9 9" stroke="rgba(240,240,245,0.55)" stroke-width="1.5" stroke-linecap="round"/></svg></div>
-      </div>
-      <div class="ritual-step">
-        <div class="ritual-greeting-block">
-          <div class="ritual-greeting">おはよう。</div>
-          <div class="ritual-sub">今日始めるタスクを選ぼう</div>
-        </div>
-        <div class="ritual-candidates-scroll scroll">
-          ${cards || '<div class="empty-state">候補タスクがありません</div>'}
-          <div class="pick-count-label">${picks.length} / 3 選択中</div>
-        </div>
-        <div class="ritual-btn-wrap">
-          <div class="ritual-btn" id="ritual-start-btn" style="${startStyle}">
-            <div class="ritual-btn-title">今日スタート</div>
-            <div class="ritual-btn-sub">${picks.length ? `${picks.length}件のタスクで始める` : "タスクを選んでください"}</div>
-          </div>
-        </div>
-      </div>
-    </div>`;
-}
-
-function wireRitualEvents() {
-  const closeBtn = $("#ritual-close-btn");
-  if (closeBtn) closeBtn.addEventListener("click", closeRitual);
-
-  $$(".cand-card").forEach((el) => {
-    el.addEventListener("click", () => {
-      const id = el.dataset.candId;
-      const picks = state.ritual.picks;
-      const sel = picks.includes(id);
-      if (!sel && picks.length >= 3) {
-        flash("最大3つまでです");
-        return;
-      }
-      state.ritual.picks = sel ? picks.filter((x) => x !== id) : [...picks, id];
-      renderRitual();
-    });
-  });
-  const startBtn = $("#ritual-start-btn");
-  if (startBtn)
-    startBtn.addEventListener("click", async () => {
-      const picks = state.ritual.picks;
-      const today = todayStr();
-      for (const id of picks) {
-        await updateTask(id, { date: today });
-      }
-      const n = picks.length;
-      state.ritual.open = false;
-      state.view = "today";
-      state.selectedDate = today;
-      renderRitual();
-      renderScreen();
-      updateTabBar();
-      flash(`${n}件のタスクで今日を始めます ✦`);
-    });
 }
 
 // ---------- bottom sheet (add/edit task) ----------
@@ -808,7 +751,7 @@ function findRepeatOptionIndex(repeat) {
 }
 
 $("#open-sheet-btn").addEventListener("click", () => openSheet());
-$("#add-project-fab").addEventListener("click", () => openAddProjectPrompt());
+$("#add-project-fab").addEventListener("click", () => openProjectModal());
 
 function defaultDraft() {
   return {
@@ -1029,25 +972,19 @@ async function saveDraftAndContinue() {
 }
 
 // ---------- 日付またぎの追従 ----------
-// 今日タブは通常 state.selectedDate が「今日」を指す前提で動いている。
+// 今日タブは常に state.selectedDate が「今日」を指す前提で動いている。
 // PWAを日をまたいで開きっぱなしにすると selectedDate が前日のまま固まり、
 // carryOverOverdueTasks が date を新しい今日に書き換えても表示フィルタ
 // (selectedDate)とズレて消えて見える問題があったため、日付変化を検知したら
 // selectedDate を更新し、引き継ぎ判定もやり直す。
-// ただし月カレンダーの日付タップで今日以外を閲覧中（selectedDate が
-// 「直前まで認識していた今日」と一致しない＝ユーザーが能動的に選んだ日）の
-// 場合は selectedDate を勝手に今日へ戻さない。
 let lastKnownToday = todayStr();
 function syncSelectedDateToToday() {
   const today = todayStr();
   if (lastKnownToday === today) return;
-  const wasViewingToday = state.selectedDate === lastKnownToday;
   lastKnownToday = today;
   carryOverOverdueTasks();
-  if (wasViewingToday) {
-    state.selectedDate = today;
-    if (state.view === "today") renderScreen();
-  }
+  state.selectedDate = today;
+  if (state.view === "today") renderScreen();
 }
 setInterval(syncSelectedDateToToday, 60 * 1000);
 document.addEventListener("visibilitychange", () => {

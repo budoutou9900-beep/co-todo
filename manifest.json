@@ -1,6 +1,6 @@
 {
-  "name": "co-todo",
-  "short_name": "co-todo",
+  "name": "Buto-do",
+  "short_name": "Buto-do",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

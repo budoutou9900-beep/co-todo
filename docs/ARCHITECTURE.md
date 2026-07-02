@@ -7,7 +7,7 @@
 JSが `innerHTML` を書き換えることで画面遷移する。
 
 ```
-index.html ── 画面シェル、各種コンテナ（#screen-content, #sheet-container, #ritual-container 等）
+index.html ── 画面シェル、各種コンテナ（#screen-content, #sheet-container 等）
   └─ js/app.js ── 状態管理・画面描画・イベント配線の中心。他の全モジュールをここでまとめる
        ├─ js/firebase-config.js ── Firebase初期化（App/Firestore/Auth）
        ├─ js/auth.js            ── Googleログイン/ログアウト・認証状態監視

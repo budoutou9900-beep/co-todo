@@ -12,7 +12,7 @@
 | フィールド | 型 | 説明 |
 |---|---|---|
 | `title` | string | タスク名 |
-| `date` | string \| null | `"YYYY-MM-DD"`形式。未設定はFirstモードの候補にのみ現れる |
+| `date` | string \| null | `"YYYY-MM-DD"`形式。未設定は日付未指定のタスクを表す |
 | `done` | boolean | 完了フラグ |
 | `order` | number | 並び替え用のソートキー。新規追加時は `Date.now()`。手動並び替え時は隣接2件の`order`の中間値に書き換える（挿入型ソート、[js/drag.js](../js/drag.js)参照） |
 | `priority` | `"today"` \| `"extra"` | 今日タブでの表示セクション。未設定時は`"today"`扱い |

@@ -135,7 +135,7 @@ function createWindow() {
     height: 820,
     minWidth: 340, // 下限幅。変えればもっと細く/太くできる
     minHeight: 480,
-    title: "co-todo",
+    title: "Buto-do",
     backgroundColor: "#0f0f14",
     autoHideMenuBar: true,
     webPreferences: {

@@ -4,7 +4,7 @@
 
 ## プロジェクト概要
 
-**co-todo**（社内呼称「ひかり」）は個人用のタスク管理PWA。スマホ・PC問わず同じURLでアクセスし、
+**Buto-do**（社内呼称「ひかり」、旧称 co-todo）は個人用のタスク管理PWA。スマホ・PC問わず同じURLでアクセスし、
 Firestoreでリアルタイム同期する。ビルドツールなし・フレームワークなしの素のHTML/CSS/JS（ESモジュール）。
 デザインは「静けさ・光・余白・集中」をキーワードにしたダークモードUI。
 
@@ -66,7 +66,7 @@ firebase deploy --only hosting
 - **`window.prompt()` / `alert()` / `confirm()` は使わない**: デスクトップ版（[desktop/](desktop/)、
   Electron製）では `window.prompt()` がネイティブ実装されておらず、呼び出しても何も表示されず
   即座にnullを返す（＝ボタンが反応しないように見える不具合になる）。ユーザー入力が必要な場面は
-  `confirmDeleteProject` や `openAddProjectPrompt`（[js/app.js](js/app.js)）のような
+  `confirmDeleteProject` や `openProjectModal`（[js/app.js](js/app.js)）のような
   `.confirm-overlay`/`.confirm-sheet` を使ったアプリ内モーダルで実装すること。
 
 ## ドキュメント更新ルール（必須）
