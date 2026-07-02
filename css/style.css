@@ -48,7 +48,7 @@ button { font-family: inherit; }
   width: 100%;
   max-width: 440px;
   margin: 0;
-  height: var(--app-height, 100dvh);
+  height: 100dvh;
   background: var(--bg);
   position: relative;
   overflow: hidden;

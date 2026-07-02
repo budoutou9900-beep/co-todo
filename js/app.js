@@ -40,21 +40,6 @@ const PROJECT_COLORS = [
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 
-// ---------- viewport height (iOS keyboard対策) ----------
-// iOS Safari/PWAでは、入力欄フォーカスでキーボードが開閉した際に100dvhの再計算が
-// 遅延・失敗することがあり、キーボードを閉じても下部タブバーの位置がずれたままになる
-// 不具合があった。visualViewportの実測値を--app-heightに反映し、#app-rootの高さを
-// JS側で明示的に追従させることで解消する。
-function syncAppHeight() {
-  const h = window.visualViewport ? window.visualViewport.height : window.innerHeight;
-  document.documentElement.style.setProperty("--app-height", `${h}px`);
-}
-if (window.visualViewport) {
-  window.visualViewport.addEventListener("resize", syncAppHeight);
-}
-window.addEventListener("orientationchange", syncAppHeight);
-syncAppHeight();
-
 let toastTimer = null;
 function flash(msg) {
   state.toastMsg = msg;
