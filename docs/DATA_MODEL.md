@@ -30,7 +30,7 @@
 | フィールド | 型 | 説明 |
 |---|---|---|
 | `title` | string | プロジェクト名 |
-| `color` | string | Hexカラー。新規作成時は12色パレット（[js/app.js](../js/app.js) `PROJECT_COLORS`）から自動割り当て、手動選択UIは無い |
+| `color` | string | Hexカラー。新規作成時は20色パレット（[js/app.js](../js/app.js) `PROJECT_COLORS`）から自動割り当て、手動選択UIは無い |
 | `dueDate` | string \| null | `"YYYY-MM-DD"`。過去日はUIで警告色表示 |
 | `open` | boolean | プロジェクトカードの展開状態。UIの表示だけでなくFirestoreにも保存し、他デバイスに同期する |
 | `childTaskIds` | array | `addProject()`時に空配列で初期化されるが、現行実装では読み取り側は使っていない（タスク側の`projectId`で逆引きしている） |

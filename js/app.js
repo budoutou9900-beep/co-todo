@@ -349,11 +349,11 @@ function renderProjectCard(p) {
   </div>`;
 }
 
-// 締切日の早い順（未設定は最後）に並べる比較関数。
+// 締切未設定を先頭に、それ以降は締切日の早い順に並べる比較関数。
 function byDueDate(a, b) {
   if (!a.dueDate && !b.dueDate) return 0;
-  if (!a.dueDate) return 1;
-  if (!b.dueDate) return -1;
+  if (!a.dueDate) return -1;
+  if (!b.dueDate) return 1;
   return a.dueDate < b.dueDate ? -1 : a.dueDate > b.dueDate ? 1 : 0;
 }
 
@@ -716,6 +716,93 @@ function openProjectModal(existingProject = null) {
   titleInput.focus();
 }
 
+// ---------- AIタスク一括追加 ----------
+// AIチャット等で生成させたJSON配列（「タスクコード」）を貼り付けると複数タスクをまとめて
+// 作成できる機能。フォーマットは [{ title, date?, project?, priority? }, ...] か、
+// 単純な文字列配列（各要素をtitleのみのタスクにする）のどちらかを許容する。
+const BULK_ADD_EXAMPLE = `[
+  { "title": "タスク名", "date": "2026-07-10", "project": "プロジェクト名", "priority": "today" },
+  { "title": "日付未定のタスク" }
+]`;
+
+// テキストをパースしてタスク配列を返す。不正な形式なら null、
+// 個々の要素がtitleを欠く場合はその要素だけスキップする。
+function parseBulkTasks(text) {
+  let data;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    return null;
+  }
+  if (!Array.isArray(data)) return null;
+  const tasks = [];
+  for (const item of data) {
+    if (typeof item === "string") {
+      const title = item.trim();
+      if (title) tasks.push({ title });
+      continue;
+    }
+    if (item && typeof item === "object" && typeof item.title === "string" && item.title.trim()) {
+      tasks.push({
+        title: item.title.trim(),
+        date: typeof item.date === "string" && item.date ? item.date : null,
+        project: typeof item.project === "string" ? item.project.trim() : "",
+        priority: item.priority === "extra" ? "extra" : "today",
+      });
+    }
+  }
+  return tasks;
+}
+
+function openBulkAddModal() {
+  const overlay = document.createElement("div");
+  overlay.className = "confirm-overlay";
+  overlay.innerHTML = `
+    <div class="confirm-sheet">
+      <div class="confirm-title">AIタスク一括追加</div>
+      <div class="confirm-body">AIに生成させたJSON形式の「タスクコード」を貼り付けると、まとめてタスクを作成します。例:</div>
+      <pre class="bulk-add-example">${escapeHtml(BULK_ADD_EXAMPLE)}</pre>
+      <textarea id="bulk-add-input" class="field-input add-project-input bulk-add-textarea" placeholder="ここにJSONを貼り付け"></textarea>
+      <button class="confirm-btn-delete confirm-btn-primary" id="bulk-add-save">追加する</button>
+      <button class="confirm-btn-cancel">キャンセル</button>
+    </div>`;
+  const textInput = overlay.querySelector("#bulk-add-input");
+  const saveBtn = overlay.querySelector("#bulk-add-save");
+  const cancelBtn = overlay.querySelector(".confirm-btn-cancel");
+  saveBtn.addEventListener("click", async () => {
+    const tasks = parseBulkTasks(textInput.value.trim());
+    if (!tasks) {
+      flash("JSON形式で入力してください");
+      return;
+    }
+    if (tasks.length === 0) {
+      flash("追加できるタスクがありませんでした");
+      return;
+    }
+    overlay.remove();
+    const now = Date.now();
+    await Promise.all(
+      tasks.map((t, i) => {
+        const project = t.project
+          ? state.projects.find((p) => p.title.toLowerCase() === t.project.toLowerCase())
+          : null;
+        return addTask({
+          title: t.title,
+          date: t.date || null,
+          projectId: project?.id || null,
+          priority: t.priority === "extra" ? "extra" : "today",
+          order: now + i,
+        });
+      })
+    );
+    flash(`${tasks.length}件のタスクを追加しました`);
+  });
+  cancelBtn.addEventListener("click", () => overlay.remove());
+  overlay.addEventListener("click", (e) => { if (e.target === overlay) overlay.remove(); });
+  document.getElementById("app-root").appendChild(overlay);
+  textInput.focus();
+}
+
 // ---------- bottom sheet (add/edit task) ----------
 const REPEAT_OPTIONS = [
   { type: "none", label: "なし" },
@@ -737,6 +824,7 @@ function findRepeatOptionIndex(repeat) {
 
 $("#open-sheet-btn").addEventListener("click", () => openSheet());
 $("#add-project-fab").addEventListener("click", () => openProjectModal());
+$("#bulk-add-btn").addEventListener("click", () => openBulkAddModal());
 
 function defaultDraft() {
   return {

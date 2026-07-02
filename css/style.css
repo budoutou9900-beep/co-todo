@@ -185,6 +185,8 @@ body.dragging-task .task-row[data-task-id], body.dragging-task .subtask-row[data
 .week-group-label { font-size: 11px; font-weight: 600; letter-spacing: 0.5px; }
 .today-badge { font-size: 9.5px; padding: 1px 7px; border-radius: 99px; background: rgba(149, 128, 255, 0.18); color: rgba(149, 128, 255, 0.85); font-weight: 600; }
 .week-group-card { background: var(--surface); border-radius: 13px; overflow: hidden; border: 1px solid var(--border-soft); margin-left: 14px; }
+/* カレンダー予定のカードはタスクと区別するため左端まで広げる（インデント無し） */
+.week-group-card-events { margin-left: 0; margin-bottom: 6px; }
 .week-task-row { padding: 10px 13px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid rgba(255, 255, 255, 0.04); cursor: pointer; }
 .week-task-proj { font-size: 10.5px; font-weight: 500; flex-shrink: 0; max-width: 35%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .week-task-row:last-child { border-bottom: none; }
@@ -271,6 +273,11 @@ body.dragging-task .task-row[data-task-id], body.dragging-task .subtask-row[data
 .confirm-btn-cancel { width: 100%; padding: 14px; border-radius: 13px; background: rgba(240,240,245,0.06); border: none; color: rgba(240,240,245,0.6); font-size: 15px; cursor: pointer; }
 .add-project-input { width: 100%; background: var(--surface3); border: 1px solid var(--border); border-radius: 13px; padding: 13px 15px; }
 @keyframes slideup { from { transform: translateY(100%); } to { transform: translateY(0); } }
+
+/* AIタスク一括追加 */
+.bulk-add-btn { width: 26px; height: 26px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+.bulk-add-example { background: var(--surface3); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; font-size: 10.5px; line-height: 1.5; color: rgba(240,240,245,0.5); font-family: 'SFMono-Regular', Consolas, monospace; white-space: pre-wrap; word-break: break-all; margin-bottom: 12px; }
+.bulk-add-textarea { min-height: 120px; resize: vertical; font-family: 'SFMono-Regular', Consolas, monospace; font-size: 12.5px; color: var(--text); margin-bottom: 14px; }
 
 /* プロジェクト選択ピッカー */
 .picker-list { max-height: 50vh; overflow-y: auto; margin-bottom: 4px; }

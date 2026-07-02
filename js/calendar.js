@@ -210,13 +210,17 @@ export function renderWeekView(tasks, weekStart, projects = [], eventsByDate = {
         </div>`;
       })
       .join("");
+    // 予定は左端まで広げ、タスクだけインデントを付けて視覚的に区別する（別カードに分割）。
+    const eventsCard = eventRows ? `<div class="week-group-card week-group-card-events">${eventRows}</div>` : "";
+    const tasksCard = rows ? `<div class="week-group-card">${rows}</div>` : "";
     html += `
       <div class="week-group">
         <div class="week-group-label-row">
           <div class="week-group-label" style="color:${labelColor}">${label}</div>
           ${isToday ? '<div class="today-badge">TODAY</div>' : ""}
         </div>
-        <div class="week-group-card">${eventRows}${rows}</div>
+        ${eventsCard}
+        ${tasksCard}
       </div>`;
   }
   return { html, total, empty: total === 0 };
