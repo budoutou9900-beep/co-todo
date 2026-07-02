@@ -63,6 +63,11 @@ firebase deploy --only hosting
   `requestRender()`（rAFでまとめる版）を使う。
 - **サービスワーカー (`sw.js`) のキャッシュ対象リスト**: 新しいJSファイルを追加したら `ASSETS`
   配列に追記しないとオフライン時に読み込めない（現状 `swipe.js` が未登録という既知の漏れがある）。
+- **`window.prompt()` / `alert()` / `confirm()` は使わない**: デスクトップ版（[desktop/](desktop/)、
+  Electron製）では `window.prompt()` がネイティブ実装されておらず、呼び出しても何も表示されず
+  即座にnullを返す（＝ボタンが反応しないように見える不具合になる）。ユーザー入力が必要な場面は
+  `confirmDeleteProject` や `openAddProjectPrompt`（[js/app.js](js/app.js)）のような
+  `.confirm-overlay`/`.confirm-sheet` を使ったアプリ内モーダルで実装すること。
 
 ## ドキュメント更新ルール（必須）
 

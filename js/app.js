@@ -6,7 +6,7 @@ import { renderTodayTimeline, taskSortKey } from "./timeline.js";
 import { attachDragSort, detachDragSort, isDragActive } from "./drag.js";
 import { attachSwipeToDelete, detachAllSwipe, isSwipeActive } from "./swipe.js";
 import { isConnected, connectCalendar, disconnectCalendar, fetchEvents, fetchEventsRange, getLastFetchInfo } from "./calendar-sync.js";
-import { hexToRgb, todayStr, toDateStr, formatHeaderDate, addDays, escapeHtml } from "./utils.js";
+import { hexToRgb, todayStr, toDateStr, formatHeaderDate, addDays, escapeHtml, isLongTermProject } from "./utils.js";
 
 const state = {
   user: null,
@@ -269,78 +269,87 @@ function renderWeekScreen() {
     </div>`;
 }
 
-function renderProjectsScreen() {
-  const cards = state.projects
-    .map((p) => {
-      const subs = state.tasks
-        .filter((t) => t.projectId === p.id)
-        .sort((a, b) => taskSortKey(a) - taskSortKey(b));
-      const doneN = subs.filter((t) => t.done).length;
-      const pct = subs.length ? Math.round((doneN / subs.length) * 100) : 0;
-      const [r, g, b] = hexToRgb(p.color || "#9580ff");
-      const dueWarn = p.dueDate && p.dueDate < todayStr();
-      const subRows = subs
-        .map((t) => {
-          const checkStyle = t.done
-            ? `background:rgba(${r},${g},${b},0.9)`
-            : `border:1.3px solid rgba(${r},${g},${b},0.4)`;
-          const textStyle = t.done
-            ? `color:rgba(240,240,245,0.4);text-decoration:line-through;text-decoration-color:rgba(${r},${g},${b},0.4)`
-            : "color:rgba(240,240,245,0.78)";
-          return `
-          <div class="subtask-row" data-task-id="${t.id}" data-sort-key="${t.order ?? ""}">
-            <div class="subtask-check" style="${checkStyle}">${
-            t.done
-              ? '<svg width="8" height="6" viewBox="0 0 9 7" fill="none"><path d="M1 3.5l2.5 2.5L8 .5" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/></svg>'
-              : ""
-          }</div>
-            <div class="subtask-text" style="${textStyle}">${escapeHtml(t.title)}</div>
-          </div>`;
-        })
-        .join("");
+// 1プロジェクト分のカードHTMLを生成する（長期/短期どちらのグループでも共用）。
+function renderProjectCard(p) {
+  const subs = state.tasks
+    .filter((t) => t.projectId === p.id)
+    .sort((a, b) => taskSortKey(a) - taskSortKey(b));
+  const doneN = subs.filter((t) => t.done).length;
+  const pct = subs.length ? Math.round((doneN / subs.length) * 100) : 0;
+  const [r, g, b] = hexToRgb(p.color || "#9580ff");
+  const dueWarn = p.dueDate && p.dueDate < todayStr();
+  const subRows = subs
+    .map((t) => {
+      const checkStyle = t.done
+        ? `background:rgba(${r},${g},${b},0.9)`
+        : `border:1.3px solid rgba(${r},${g},${b},0.4)`;
+      const textStyle = t.done
+        ? `color:rgba(240,240,245,0.4);text-decoration:line-through;text-decoration-color:rgba(${r},${g},${b},0.4)`
+        : "color:rgba(240,240,245,0.78)";
       return `
-      <div class="project-card" data-project-id="${p.id}">
-        <div class="project-top-bar" style="background:linear-gradient(90deg,${p.color},rgba(${r},${g},${b},0.3))"></div>
-        <div class="project-swipe-area">
-          <div class="project-header-row" data-toggle-project="${p.id}">
-            <div>
-              <div class="project-name">${escapeHtml(p.title)}</div>
-              <div class="project-sub">${subs.length}個のタスク</div>
-            </div>
-            <div style="text-align:right">
-              <div class="project-pct" style="color:${p.color}">${pct}%</div>
-              <div class="project-pct-label">完了</div>
-            </div>
-          </div>
-          <div class="project-bar-track">
-            <div class="project-bar-fill" style="width:${pct}%;background:linear-gradient(90deg,${p.color},rgba(${r},${g},${b},0.65));box-shadow:0 0 8px rgba(${r},${g},${b},0.5)"></div>
-          </div>
-          <div class="project-footer-row">
-            <div class="project-footer-left">
-              <div>
-                <div class="project-stat-val">${doneN} / ${subs.length}</div>
-                <div class="project-stat-label">タスク完了</div>
-              </div>
-              <div>
-                <div class="project-due" style="color:${dueWarn ? "var(--warn)" : "rgba(240,240,245,0.65)"}">${
-        p.dueDate || "—"
+      <div class="subtask-row" data-task-id="${t.id}" data-sort-key="${t.order ?? ""}">
+        <div class="subtask-check" style="${checkStyle}">${
+        t.done
+          ? '<svg width="8" height="6" viewBox="0 0 9 7" fill="none"><path d="M1 3.5l2.5 2.5L8 .5" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/></svg>'
+          : ""
       }</div>
-                <div class="project-stat-label">締切</div>
-              </div>
-            </div>
-            <div class="project-expand-hint">${p.open ? "閉じる ▲" : "開く ▼"}</div>
-          </div>
-          ${
-            p.open
-              ? `<div class="project-subtasks">${subRows || '<div class="project-stat-label">小タスクなし</div>'}
-                <div class="add-subtask-btn" data-add-subtask="${p.id}">＋ タスクを追加</div>
-              </div>`
-              : ""
-          }
-        </div>
+        <div class="subtask-text" style="${textStyle}">${escapeHtml(t.title)}</div>
       </div>`;
     })
     .join("");
+  return `
+  <div class="project-card" data-project-id="${p.id}">
+    <div class="project-top-bar" style="background:linear-gradient(90deg,${p.color},rgba(${r},${g},${b},0.3))"></div>
+    <div class="project-swipe-area">
+      <div class="project-header-row" data-toggle-project="${p.id}">
+        <div>
+          <div class="project-name">${escapeHtml(p.title)}</div>
+          <div class="project-sub">${subs.length}個のタスク</div>
+        </div>
+        <div style="text-align:right">
+          <div class="project-pct" style="color:${p.color}">${pct}%</div>
+          <div class="project-pct-label">完了</div>
+        </div>
+      </div>
+      <div class="project-bar-track">
+        <div class="project-bar-fill" style="width:${pct}%;background:linear-gradient(90deg,${p.color},rgba(${r},${g},${b},0.65));box-shadow:0 0 8px rgba(${r},${g},${b},0.5)"></div>
+      </div>
+      <div class="project-footer-row">
+        <div class="project-footer-left">
+          <div>
+            <div class="project-stat-val">${doneN} / ${subs.length}</div>
+            <div class="project-stat-label">タスク完了</div>
+          </div>
+          <div>
+            <div class="project-due" style="color:${dueWarn ? "var(--warn)" : "rgba(240,240,245,0.65)"}">${
+    p.dueDate || "—"
+  }</div>
+            <div class="project-stat-label">締切</div>
+          </div>
+        </div>
+        <div class="project-expand-hint">${p.open ? "閉じる ▲" : "開く ▼"}</div>
+      </div>
+      ${
+        p.open
+          ? `<div class="project-subtasks">${subRows || '<div class="project-stat-label">小タスクなし</div>'}
+            <div class="add-subtask-btn" data-add-subtask="${p.id}">＋ タスクを追加</div>
+          </div>`
+          : ""
+      }
+    </div>
+  </div>`;
+}
+
+function renderProjectsScreen() {
+  // 締切日から長期/短期を自動判定してグループ表示する（締切まで15日以上先=長期）。
+  const longTerm = state.projects.filter(isLongTermProject);
+  const shortTerm = state.projects.filter((p) => !isLongTermProject(p));
+  const groupHtml = (label, projects) =>
+    projects.length
+      ? `<div class="project-group-header"><span class="project-group-title">${label}</span><span class="project-group-count">${projects.length}</span></div>
+         ${projects.map(renderProjectCard).join("")}`
+      : "";
+  const cards = groupHtml("短期", shortTerm) + groupHtml("長期", longTerm);
   return `
     <div class="screen">
       <div class="screen-header" style="padding-bottom:14px">
@@ -623,13 +632,47 @@ function goToDayDetail(dateStr, view) {
   if (view === "today") refreshCalendar(dateStr);
 }
 
-async function openAddProjectPrompt() {
-  const title = prompt("プロジェクト名を入力してください");
-  if (!title || !title.trim()) return;
-  const dueDate = prompt("締切日（YYYY-MM-DD、なければ空欄）") || null;
-  const color = PROJECT_COLORS[state.projects.length % PROJECT_COLORS.length];
-  await addProject({ title: title.trim(), color, dueDate: dueDate || null, open: true });
-  flash("プロジェクトを追加しました");
+// プロジェクト追加フォーム。window.prompt() はデスクトップ版（Electron）で
+// ネイティブ実装が無く即座にnullを返すため使えない（ボタンが反応しないように見える
+// 不具合の原因だった）。アプリ内モーダルに置き換えて全プラットフォームで動くようにする。
+function openAddProjectPrompt() {
+  const overlay = document.createElement("div");
+  overlay.className = "confirm-overlay";
+  overlay.innerHTML = `
+    <div class="confirm-sheet">
+      <div class="confirm-title">プロジェクトを追加</div>
+      <input id="new-project-title" class="field-input add-project-input" placeholder="プロジェクト名を入力" autocomplete="off" />
+      <div class="field-box-label" style="margin:14px 0 6px">締切日（任意）</div>
+      <input type="date" id="new-project-due" class="date-input-native add-project-input" />
+      <button class="confirm-btn-delete confirm-btn-primary" id="new-project-save" disabled>追加する</button>
+      <button class="confirm-btn-cancel">キャンセル</button>
+    </div>`;
+  const titleInput = overlay.querySelector("#new-project-title");
+  const dueInput = overlay.querySelector("#new-project-due");
+  const saveBtn = overlay.querySelector("#new-project-save");
+  const cancelBtn = overlay.querySelector(".confirm-btn-cancel");
+  const updateSaveEnabled = () => {
+    saveBtn.disabled = !titleInput.value.trim();
+  };
+  titleInput.addEventListener("input", updateSaveEnabled);
+  const save = async () => {
+    const title = titleInput.value.trim();
+    if (!title) return;
+    overlay.remove();
+    const color = PROJECT_COLORS[state.projects.length % PROJECT_COLORS.length];
+    await addProject({ title, color, dueDate: dueInput.value || null, open: true });
+    flash("プロジェクトを追加しました");
+  };
+  saveBtn.addEventListener("click", save);
+  titleInput.addEventListener("keydown", (e) => {
+    if (e.key !== "Enter" || e.isComposing || e.keyCode === 229) return;
+    e.preventDefault();
+    save();
+  });
+  cancelBtn.addEventListener("click", () => overlay.remove());
+  overlay.addEventListener("click", (e) => { if (e.target === overlay) overlay.remove(); });
+  document.getElementById("app-root").appendChild(overlay);
+  titleInput.focus();
 }
 
 // ---------- First（簡略化儀式モード） ----------

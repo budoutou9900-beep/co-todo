@@ -68,6 +68,15 @@ export function startOfWeek(dateStr) {
   return toDateStr(d);
 }
 
+const LONG_TERM_THRESHOLD_DAYS = 15;
+
+// プロジェクトの長期/短期を締切日から自動判定する。
+// 締切まで15日以上先なら「長期」、それ以外（締切未設定・15日未満・超過含む）は「短期」。
+export function isLongTermProject(project) {
+  if (!project.dueDate) return false;
+  return project.dueDate >= addDays(todayStr(), LONG_TERM_THRESHOLD_DAYS);
+}
+
 export function escapeHtml(str) {
   const div = document.createElement("div");
   div.textContent = str ?? "";
