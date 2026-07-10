@@ -125,30 +125,27 @@ export function renderMonthCalendar(tasks, eventsByDate = {}, projects = [], mon
         )
         .join("") + (moreN > 0 ? `<div class="mc-more">+${moreN}</div>` : "");
 
-    // プロジェクトの締切日は、そのプロジェクトのカラーで日付バッジをハイライトする。
-    // 今日と重なる場合は今日バッジ（アクセントカラー）を残しつつ枠線で締切も分かるようにする。
-    const dueProject = dueByDate.get(dateStr);
+    // 「今日」は日付バッジ（丸）でハイライトし、プロジェクトの締切日はセル自体の
+    // 背景・枠線をプロジェクトカラーでハイライトする（丸バッジ同士だと見分けにくいため分離）。
     let numClass = "mc-num";
     let numStyle = `color:${numColor}`;
-    let numTitle = "";
+    if (isToday) numClass += " mc-today";
+
+    const dueProject = dueByDate.get(dateStr);
+    let cellClass = "mc-cell";
+    let cellStyle = "";
+    let cellTitle = "";
     if (dueProject) {
       const [r, g, b] = hexToRgb(dueProject.color);
-      numTitle = ` title="${escapeHtml(dueProject.title)} の締切"`;
-      if (isToday) {
-        numClass += " mc-today";
-        numStyle = `color:#fff;border:2px solid ${dueProject.color}`;
-      } else {
-        numClass += " mc-due";
-        numStyle = `color:#fff;background:${dueProject.color};box-shadow:0 0 10px rgba(${r},${g},${b},0.55)`;
-      }
-    } else if (isToday) {
-      numClass += " mc-today";
+      cellClass += " mc-cell-due";
+      cellStyle = ` style="--due-r:${r};--due-g:${g};--due-b:${b}"`;
+      cellTitle = ` title="${escapeHtml(dueProject.title)} の締切"`;
     }
     const isSelected = dateStr === weekDetailDate;
 
     cells += `
-      <div class="mc-cell${inMonth ? "" : " mc-out"}${isSelected ? " mc-selected" : ""}" data-date="${dateStr}">
-        <div class="${numClass}" style="${numStyle}"${numTitle}>${d.getDate()}</div>
+      <div class="${cellClass}${inMonth ? "" : " mc-out"}${isSelected ? " mc-selected" : ""}" data-date="${dateStr}"${cellStyle}${cellTitle}>
+        <div class="${numClass}" style="${numStyle}">${d.getDate()}</div>
         <div class="mc-chips">${chips}</div>
       </div>`;
   }

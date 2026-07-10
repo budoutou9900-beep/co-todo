@@ -38,6 +38,18 @@ export function addDays(dateStr, n) {
   return toDateStr(d);
 }
 
+// nか月後の日付を返す。月末日の加算で存在しない日になる場合（例: 1/31 + 1か月）は
+// その月の末日にクランプする（例: 2/28 or 2/29）。
+export function addMonths(dateStr, n) {
+  const d = new Date(dateStr + "T00:00:00");
+  const day = d.getDate();
+  d.setDate(1);
+  d.setMonth(d.getMonth() + n);
+  const lastDay = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+  d.setDate(Math.min(day, lastDay));
+  return toDateStr(d);
+}
+
 const DOW_JP = ["日", "月", "火", "水", "木", "金", "土"];
 const MONTH_DAY_JP = (d) => `${d.getMonth() + 1}月${d.getDate()}日`;
 

@@ -163,10 +163,10 @@ body.dragging-task .task-row[data-task-id], body.dragging-task .subtask-row[data
 .mc-out { background: rgba(0, 0, 0, 0.18); }
 /* 今週タブ内で日付詳細を表示中のセル */
 .mc-cell.mc-selected { background: rgba(149, 128, 255, 0.14); box-shadow: inset 0 0 0 1px rgba(149, 128, 255, 0.4); }
+/* プロジェクトの締切日: 今日の丸バッジと紛らわしいためセル自体の背景・枠線でハイライトする */
+.mc-cell.mc-cell-due { background: rgba(var(--due-r), var(--due-g), var(--due-b), 0.16); box-shadow: inset 0 0 0 1.5px rgba(var(--due-r), var(--due-g), var(--due-b), 0.6); }
 .mc-num { font-size: 11.5px; font-weight: 600; text-align: right; line-height: 1.4; }
 .mc-num.mc-today { align-self: flex-end; min-width: 18px; height: 18px; border-radius: 50%; background: var(--accent); display: flex; align-items: center; justify-content: center; box-shadow: 0 0 10px rgba(149, 128, 255, 0.55); }
-/* プロジェクトの締切日: そのプロジェクトのカラーで日付をハイライト */
-.mc-num.mc-due { align-self: flex-end; min-width: 18px; height: 18px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
 .mc-chips { display: flex; flex-direction: column; gap: 2px; }
 .mc-chip { font-size: 8.5px; line-height: 1.3; color: #fff; padding: 1px 3px; border-radius: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .mc-more { font-size: 8.5px; color: rgba(240, 240, 245, 0.4); padding-left: 2px; }
@@ -258,6 +258,10 @@ body.dragging-task .task-row[data-task-id], body.dragging-task .subtask-row[data
 .priority-toggle { display: flex; gap: 8px; margin-bottom: 9px; }
 .priority-opt { flex: 1; text-align: center; padding: 11px; border-radius: 12px; background: var(--surface3); border: 1px solid var(--border); font-size: 13.5px; color: rgba(240,240,245,0.5); cursor: pointer; }
 .priority-opt-active { background: rgba(149,128,255,0.16); border-color: rgba(149,128,255,0.4); color: #b3a3ff; font-weight: 600; }
+/* 先送りボタン: タップした瞬間に日付を確定するので保存ボタンは不要 */
+.postpone-row { display: flex; gap: 8px; margin-bottom: 9px; }
+.postpone-btn { flex: 1; text-align: center; padding: 11px; border-radius: 12px; background: var(--surface3); border: 1px solid var(--border); font-size: 13px; color: rgba(240,240,245,0.65); cursor: pointer; }
+.postpone-btn:active { background: rgba(149,128,255,0.16); border-color: rgba(149,128,255,0.4); color: #b3a3ff; }
 
 /* date picker popover (simple) */
 .date-input-native { background: transparent; border: none; outline: none; color: var(--text); font-size: 14px; font-weight: 500; font-family: inherit; width: 100%; }

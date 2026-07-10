@@ -6,7 +6,7 @@ import { renderTodayTimeline, taskSortKey } from "./timeline.js";
 import { attachDragSort, detachDragSort, isDragActive } from "./drag.js";
 import { attachSwipeToDelete, detachAllSwipe, isSwipeActive } from "./swipe.js";
 import { isConnected, connectCalendar, disconnectCalendar, fetchEvents, fetchEventsRange, getLastFetchInfo } from "./calendar-sync.js";
-import { hexToRgb, todayStr, toDateStr, formatHeaderDate, addDays, escapeHtml, isLongTermProject } from "./utils.js";
+import { hexToRgb, todayStr, toDateStr, formatHeaderDate, addDays, addMonths, escapeHtml, isLongTermProject } from "./utils.js";
 
 const state = {
   user: null,
@@ -496,7 +496,8 @@ function wireScreenEvents() {
     const pad = $(".task-list-pad");
     if (pad) {
       // 「今日中」「+α」セクションをまたいで移動したら priority も更新する。
-      // 隣接する行（カレンダー予定は data-priority なし）の priority を優先的に継承。
+      // 隣接する行（カレンダー予定行にも data-priority="today" が付与されている）の
+      // priority を優先的に継承。
       const computeExtraPriority = (prevRow, nextRow) => {
         const p = prevRow?.dataset.priority || nextRow?.dataset.priority || "today";
         return { priority: p };
@@ -925,6 +926,13 @@ function renderSheet(animate = false) {
             <div class="priority-opt${d.priority !== "extra" ? " priority-opt-active" : ""}" data-priority="today">今日中</div>
             <div class="priority-opt${d.priority === "extra" ? " priority-opt-active" : ""}" data-priority="extra">+α</div>
           </div>
+          ${isEdit ? `
+          <div class="field-box-label" style="margin:14px 0 6px">先送り</div>
+          <div class="postpone-row">
+            <div class="postpone-btn" data-postpone="1d">明日</div>
+            <div class="postpone-btn" data-postpone="1w">1週間後</div>
+            <div class="postpone-btn" data-postpone="1m">1か月後</div>
+          </div>` : ""}
         </div>
       </div>
     </div>`;
@@ -961,6 +969,25 @@ function wireSheetEvents() {
     });
   });
   $("#sheet-save-btn").addEventListener("click", saveDraftTask);
+  $$(".postpone-btn").forEach((el) => {
+    el.addEventListener("click", () => postponeTask(el.dataset.postpone));
+  });
+}
+
+// 編集中タスクの日付だけを即時更新して先送りする（他の未保存の編集内容は保存しない）。
+async function postponeTask(kind) {
+  const taskId = state.sheet.editingId;
+  if (!taskId) return;
+  const today = todayStr();
+  const newDate =
+    kind === "1d" ? addDays(today, 1) : kind === "1w" ? addDays(today, 7) : addMonths(today, 1);
+  try {
+    await updateTask(taskId, { date: newDate });
+  } catch (err) {
+    console.error("先送りに失敗:", err);
+    return;
+  }
+  closeSheet();
 }
 
 // タスク編集シート内「プロジェクト」欄のピッカー。日付ピッカーと同様、

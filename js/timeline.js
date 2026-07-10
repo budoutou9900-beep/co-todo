@@ -69,7 +69,7 @@ function calSortKey(ev) {
 function renderCalEventCard(ev) {
   const rgb = ev.color ? hexToRgb(ev.color).join(",") : CAL_COLOR_FALLBACK;
   return `
-      <div class="task-row cal-event-row" data-sort-key="${calSortKey(ev)}" style="cursor:default">
+      <div class="task-row cal-event-row" data-sort-key="${calSortKey(ev)}" data-priority="today" style="cursor:default">
         <div class="task-card task-card-1line" style="background:rgba(${rgb},0.08);border-left:2.5px solid rgb(${rgb});">
           <div class="task-check" style="border:none;background:rgba(${rgb},0.16)">
             <svg width="14" height="14" viewBox="0 0 22 22" fill="none"><rect x="3" y="5" width="16" height="14" rx="2" stroke="rgb(${rgb})" stroke-width="1.6"/><path d="M3 9h16M8 3v4M14 3v4" stroke="rgb(${rgb})" stroke-width="1.6" stroke-linecap="round"/></svg>
