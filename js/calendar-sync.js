@@ -47,9 +47,36 @@ function requestToken(interactive) {
   });
 }
 
+// デスクトップ版（Electron）ではGISのポップアップ方式は使わない。
+// window-openハンドラが外部ブラウザへポップアップを逃がしてしまい、postMessageでの
+// トークン中継が切れて accounts.google.com/gsi/transform で固まるため、ログインと同じ
+// システムブラウザ + PKCE 方式（desktop/main.js）に分岐する。
+function isDesktop() {
+  return !!window.desktopAuth?.googleCalendarOAuth;
+}
+
+async function requestTokenDesktop(interactive) {
+  if (interactive) {
+    const { accessToken: token, expiresIn } = await window.desktopAuth.googleCalendarOAuth();
+    accessToken = token;
+    tokenExpiry = Date.now() + (Number(expiresIn) - 60) * 1000;
+    try {
+      localStorage.setItem(STORAGE_KEY, "1");
+    } catch (e) {}
+    return accessToken;
+  }
+  const result = await window.desktopAuth.googleCalendarToken();
+  if (!result) {
+    throw new Error("カレンダー連携の再認証が必要です。連携をONにし直してください");
+  }
+  accessToken = result.accessToken;
+  tokenExpiry = Date.now() + (Number(result.expiresIn) - 60) * 1000;
+  return accessToken;
+}
+
 async function getToken() {
   if (accessToken && Date.now() < tokenExpiry) return accessToken;
-  return requestToken(false);
+  return isDesktop() ? requestTokenDesktop(false) : requestToken(false);
 }
 
 export function isConnected() {
@@ -62,6 +89,10 @@ export function isConnected() {
 
 // 初回連携（ユーザーが連携ボタンを押したとき）
 export async function connectCalendar() {
+  if (isDesktop()) {
+    await requestTokenDesktop(true);
+    return;
+  }
   await requestToken(true);
 }
 
@@ -71,6 +102,7 @@ export function disconnectCalendar() {
   try {
     localStorage.removeItem(STORAGE_KEY);
   } catch (e) {}
+  if (isDesktop()) window.desktopAuth.googleCalendarDisconnect();
 }
 
 // 指定日（"YYYY-MM-DD"）の予定一覧を取得

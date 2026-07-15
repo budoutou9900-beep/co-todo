@@ -121,6 +121,16 @@ Firebase Authとは完全に別の認可フロー。Google Identity Services (GI
   サイレント再取得を試みる。401が返ってきた場合も1回だけサイレント再取得してリトライする。
 - 連携状態（`isConnected()`）は `localStorage` の1フラグのみで管理し、実際のアクセストークンは
   メモリ上（モジュールスコープの変数）にしか保持しない。リロード後はサイレント取得で復元する。
+- **デスクトップ版（Electron）はGISのポップアップ方式を使わない**: `desktop/main.js`の
+  `setWindowOpenHandler`が`window.open`を無条件に外部ブラウザへ逃がす実装のため、GISの
+  OAuthポップアップがElectron側の`window.opener`を失い、postMessageによるトークン中継が
+  切れて`accounts.google.com/gsi/transform`で固まる（連携が完了しない）。そのため
+  `window.desktopAuth?.googleCalendarOAuth`の有無で分岐し、ログイン（`js/auth.js`）と同じ
+  システムブラウザ + PKCE + ループバック方式（`desktop/main.js`の`googleCalendarOAuth()`）に
+  切り替える。初回連携時に`access_type=offline`でリフレッシュトークンを取得し、
+  Electronの`userData`フォルダ（`calendar-token.json`、Git管理外）に保存することで、
+  以後のサイレント更新（`refreshCalendarToken()`）はブラウザを開かずIPC経由のトークン
+  エンドポイント呼び出しだけで完結する。
 
 ## デプロイ・配信
 

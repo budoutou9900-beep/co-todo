@@ -6,4 +6,9 @@ const { contextBridge, ipcRenderer } = require("electron");
 contextBridge.exposeInMainWorld("desktopAuth", {
   // { idToken, accessToken } を返す
   googleOAuth: () => ipcRenderer.invoke("google-oauth"),
+  // カレンダー連携（システムブラウザでOAuth）。{ accessToken, expiresIn } を返す
+  googleCalendarOAuth: () => ipcRenderer.invoke("google-calendar-connect"),
+  // 保存済みリフレッシュトークンでサイレント更新。{ accessToken, expiresIn } か null
+  googleCalendarToken: () => ipcRenderer.invoke("google-calendar-token"),
+  googleCalendarDisconnect: () => ipcRenderer.invoke("google-calendar-disconnect"),
 });
