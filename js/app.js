@@ -97,19 +97,36 @@ function startSubscriptions() {
 // - 対象: date が今日より前 かつ 未完了 かつ 繰り返しなし
 // - date を今日に上書き（元の日付は残さないシンプル方式）
 // - 更新後はそのタスクの date が今日になるため再実行で再マッチしない
+//
+// 書き込みが失敗し続けるタスク（例: サーバー側では削除済みだがローカルの
+// IndexedDBキャッシュに古いコピーが残っている場合、更新先ドキュメントが
+// 存在せずFirestoreが拒否する）があると、失敗→ロールバック→onSnapshot再発火→
+// 再試行…が高速ループし、該当タスクが表示/非表示を繰り返して操作不能になる
+// 不具合があった（デスクトップ版で発生）。一度失敗したタスクIDはセッション中は
+// 再試行しないことでこのループを断ち切る。
 let carryOverRunning = false;
+const carryOverFailedIds = new Set();
 async function carryOverOverdueTasks() {
   if (carryOverRunning) return;
   const today = todayStr();
   const overdue = state.tasks.filter(
-    (t) => !t.done && t.date && t.date < today && (!t.repeat || t.repeat.type === "none")
+    (t) =>
+      !t.done &&
+      t.date &&
+      t.date < today &&
+      (!t.repeat || t.repeat.type === "none") &&
+      !carryOverFailedIds.has(t.id)
   );
   if (overdue.length === 0) return;
   carryOverRunning = true;
   try {
-    await Promise.all(overdue.map((t) => updateTask(t.id, { date: today })));
-  } catch (e) {
-    console.error("タスクの引き継ぎに失敗:", e);
+    const results = await Promise.allSettled(overdue.map((t) => updateTask(t.id, { date: today })));
+    results.forEach((r, i) => {
+      if (r.status === "rejected") {
+        carryOverFailedIds.add(overdue[i].id);
+        console.error("タスクの引き継ぎに失敗:", overdue[i].id, r.reason);
+      }
+    });
   } finally {
     carryOverRunning = false;
   }
