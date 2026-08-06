@@ -1,4 +1,4 @@
-const CACHE = "task-app-v7";
+const CACHE = "task-app-v8";
 const ASSETS = [
   "./",
   "./index.html",
@@ -31,6 +31,10 @@ self.addEventListener("activate", (e) => {
 });
 
 self.addEventListener("fetch", (e) => {
+  // Firebase Authのリダイレクトログインが使う特殊パス（/__/auth/handler等）は
+  // SWで横取りしない。ここに割り込むとリダイレクト結果がアプリに正しく
+  // 引き継がれず、ログイン画面に戻ってループする不具合につながる。
+  if (new URL(e.request.url).pathname.startsWith("/__/auth/")) return;
   if (e.request.mode === "navigate") {
     e.respondWith(
       fetch(e.request).catch(() => caches.match("./index.html"))
