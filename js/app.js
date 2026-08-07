@@ -1,4 +1,4 @@
-import { watchAuth, signIn, signOutUser } from "./auth.js";
+import { watchAuth, signOutUser, renderGoogleSignInButton, signInDesktop } from "./auth.js";
 import { subscribeToTasks, subscribeToProjects, addTask, updateTask, addProject, updateProject, deleteTask, deleteProject } from "./db.js";
 import { completeTask } from "./tasks.js";
 import { renderWeekView, renderMonthCalendar } from "./calendar.js";
@@ -57,28 +57,37 @@ function renderToast() {
 }
 
 // ---------- auth ----------
-watchAuth(
-  async (user) => {
-    state.user = user;
-    if (user) {
-      $("#login-screen").style.display = "none";
-      $("#app-screen").style.display = "flex";
-      startSubscriptions();
-      if (state.calendarConnected) waitForGisThenRefresh();
-    } else {
-      $("#login-screen").style.display = "flex";
-      $("#app-screen").style.display = "none";
-      if (state.unsubTasks) state.unsubTasks();
-      if (state.unsubProjects) state.unsubProjects();
-    }
-  },
-  (err) => {
-    const el = $("#login-error");
-    if (el) el.textContent = `ログインエラー: ${err.code || ""} ${err.message || err}`;
+watchAuth(async (user) => {
+  state.user = user;
+  if (user) {
+    $("#login-screen").style.display = "none";
+    $("#app-screen").style.display = "flex";
+    startSubscriptions();
+    if (state.calendarConnected) waitForGisThenRefresh();
+  } else {
+    $("#login-screen").style.display = "flex";
+    $("#app-screen").style.display = "none";
+    if (state.unsubTasks) state.unsubTasks();
+    if (state.unsubProjects) state.unsubProjects();
   }
-);
+});
 
-$("#login-btn").addEventListener("click", () => signIn().catch((e) => alert("ログインに失敗しました: " + e.message)));
+function showLoginError(e) {
+  const el = $("#login-error");
+  if (el) el.textContent = `ログインエラー: ${e.code || ""} ${e.message || e}`;
+}
+
+// デスクトップ版（Electronラッパー）ではシステムブラウザでのOAuthに固定のボタンを使い、
+// それ以外（モバイル/デスクトップのブラウザ）ではGoogle純正の「Googleでログイン」
+// ボタンをGISで描画する（詳細は js/auth.js のコメント参照）。
+if (window.desktopAuth?.googleOAuth) {
+  const btn = $("#login-btn");
+  btn.style.display = "flex";
+  btn.addEventListener("click", () => signInDesktop().catch(showLoginError));
+} else {
+  renderGoogleSignInButton($("#google-signin-btn"), showLoginError);
+}
+
 $("#signout-btn").addEventListener("click", () => signOutUser());
 
 function startSubscriptions() {

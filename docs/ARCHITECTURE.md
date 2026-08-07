@@ -107,9 +107,8 @@ function renderScreen() {
 
 | 環境 | 方式 | 理由 |
 |---|---|---|
-| ホーム画面に追加したPWA (standalone) | `signInWithRedirect` | `signInWithPopup`はGoogleの"disallowed_useragent"判定でブロックされるため |
-| デスクトップ版（Electron） | システムブラウザでOAuth → `signInWithCredential` | 埋め込みブラウザのOAuthをGoogleが弾くため。`window.desktopAuth.googleOAuth()`経由でトークンを受け取る |
-| 通常のブラウザタブ（モバイルSafari含む） | `signInWithPopup` | Safari 16.1+ 等のサードパーティストレージ制限により、`signInWithRedirect`が内部で使う中継iframeがブロックされ`auth/internal-error`でログインループする既知の問題があるため。popupはウィンドウ間の直接通信(`postMessage`)のためこの制限を受けない |
+| デスクトップ版（Electron） | システムブラウザでOAuth → `signInWithCredential` | 埋め込みブラウザのOAuthをGoogleが弾くため。`window.desktopAuth.googleOAuth()`経由でトークンを受け取る。ログイン画面には従来通りの自前スタイルの`#login-btn`を表示する |
+| それ以外全て（PC/モバイル問わず通常のブラウザタブ、ホーム画面PWA） | Google Identity Services (GIS) の「Googleでログイン」ボタン（`renderGoogleSignInButton`）→ 取得したIDトークンで`signInWithCredential` | `signInWithPopup`/`signInWithRedirect`はどちらもFirebase Authが内部で使うauthDomain上の中継iframe・別ウィンドウとのpostMessage通信に依存するが、Safari 16.1+ 等のサードパーティストレージ制限によりこの中継が壊れ、ログイン後`auth/internal-error`になって延々ログイン画面に戻るループが起きる不具合があった（popup/redirectいずれも再現、アカウントを変えても再現、Google Cloud側のOAuthクライアント設定は正常なことを確認済み）。GISのボタンはFirebaseの中継iframeを使わずGoogle純正のUIから直接IDトークンを発行するため、この問題を受けない（[Firebase公式ドキュメントのOption 2](https://firebase.google.com/docs/auth/web/redirect-best-practices)）。ボタンは`index.html`の`#google-signin-btn`に描画され、GISスクリプト(`<script src="https://accounts.google.com/gsi/client">`)の読み込み待ちが必要なためポーリングで初期化する |
 
 ## Googleカレンダー連携の認可フロー（`js/calendar-sync.js`）
 
