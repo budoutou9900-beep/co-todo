@@ -107,9 +107,9 @@ function renderScreen() {
 
 | 環境 | 方式 | 理由 |
 |---|---|---|
-| モバイルSafari / PWA (standalone) | `signInWithRedirect` | `signInWithPopup`はGoogleの"disallowed_useragent"判定でブロックされるため |
+| ホーム画面に追加したPWA (standalone) | `signInWithRedirect` | `signInWithPopup`はGoogleの"disallowed_useragent"判定でブロックされるため |
 | デスクトップ版（Electron） | システムブラウザでOAuth → `signInWithCredential` | 埋め込みブラウザのOAuthをGoogleが弾くため。`window.desktopAuth.googleOAuth()`経由でトークンを受け取る |
-| 通常のデスクトップブラウザ | `signInWithRedirect` | 上記いずれにも該当しない場合のデフォルト |
+| 通常のブラウザタブ（モバイルSafari含む） | `signInWithPopup` | Safari 16.1+ 等のサードパーティストレージ制限により、`signInWithRedirect`が内部で使う中継iframeがブロックされ`auth/internal-error`でログインループする既知の問題があるため。popupはウィンドウ間の直接通信(`postMessage`)のためこの制限を受けない |
 
 ## Googleカレンダー連携の認可フロー（`js/calendar-sync.js`）
 
