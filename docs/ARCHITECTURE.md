@@ -15,6 +15,7 @@ index.html ── 画面シェル、各種コンテナ（#screen-content, #sheet
        ├─ js/tasks.js           ── 繰り返しタスクの次回分生成ロジック
        ├─ js/calendar.js        ── 月カレンダー・週ビューのHTML生成（純関数寄り）
        ├─ js/calendar-sync.js   ── Google Calendar API（読み取り専用）との連携
+       ├─ js/weather-sync.js    ── Open-Meteoの天気予報API連携（傘リマインダー）
        ├─ js/timeline.js        ── 今日タブのタイムラインHTML生成（純関数寄り）
        ├─ js/drag.js            ── 長押し/ドラッグによる並び替えの汎用実装
        ├─ js/swipe.js           ── 左スワイプ削除の汎用実装
@@ -130,6 +131,13 @@ Firebase Authとは完全に別の認可フロー。Google Identity Services (GI
   Electronの`userData`フォルダ（`calendar-token.json`、Git管理外）に保存することで、
   以後のサイレント更新（`refreshCalendarToken()`）はブラウザを開かずIPC経由のトークン
   エンドポイント呼び出しだけで完結する。
+
+## 天気連携の認可フロー（`js/weather-sync.js`）
+
+Google Calendar連携ともFirebase Authとも別の仕組み。OAuthを使わず、ブラウザ標準の
+Geolocation APIで取得した現在地の緯度経度だけを`localStorage`に保存し、APIキー不要の
+Open-Meteo APIに直接リクエストする（サーバーを経由しない・アクセストークンの概念も無い）。
+連携状態（`isConnected()`）も`localStorage`の1フラグのみで管理する点はカレンダー連携と同様。
 
 ## デプロイ・配信
 

@@ -9,6 +9,7 @@ import {
   escapeHtml,
   hexToRgb,
 } from "./utils.js";
+import { RAIN_THRESHOLD } from "./weather-sync.js";
 
 const NEUTRAL = "#5a5a72";
 const EVENT_COLOR_FALLBACK = "#6b7a99"; // カレンダー色が取得できない場合のフォールバック
@@ -162,7 +163,7 @@ export function renderMonthCalendar(tasks, eventsByDate = {}, projects = [], mon
     </div>`;
 }
 
-export function renderWeekView(tasks, weekStart, projects = [], eventsByDate = {}) {
+export function renderWeekView(tasks, weekStart, projects = [], eventsByDate = {}, weatherByDate = {}) {
   const projectMap = new Map(projects.map((p) => [p.id, p]));
   const dayOrder = [0, 1, 2, 3, 4, 5, 6].map((i) => addDays(weekStart, i));
   const today = todayStr();
@@ -177,6 +178,11 @@ export function renderWeekView(tasks, weekStart, projects = [], eventsByDate = {
     const isToday = dateStr === today;
     const label = `${dowJp(dateStr)} · ${dayNum(dateStr)}`;
     const labelColor = isToday ? "rgba(149,128,255,0.85)" : "rgba(240,240,245,0.32)";
+    const forecast = weatherByDate[dateStr];
+    const umbrellaBadge =
+      forecast && forecast.precipProb >= RAIN_THRESHOLD
+        ? `<span class="umbrella-badge" title="降水確率${forecast.precipProb}%">☂</span>`
+        : "";
     // Googleカレンダー予定はタスクと見分けがつくよう、丸ドットではなくカレンダーアイコン＋
     // 専用の背景トーン（.week-event-row）で区別する（today.jsのrenderCalEventCardと同系統）。
     const eventRows = dayEvents
@@ -214,6 +220,7 @@ export function renderWeekView(tasks, weekStart, projects = [], eventsByDate = {
       <div class="week-group">
         <div class="week-group-label-row">
           <div class="week-group-label" style="color:${labelColor}">${label}</div>
+          ${umbrellaBadge}
           ${isToday ? '<div class="today-badge">TODAY</div>' : ""}
         </div>
         ${eventsCard}

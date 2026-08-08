@@ -6,6 +6,13 @@ import { renderTodayTimeline, taskSortKey } from "./timeline.js";
 import { attachDragSort, detachDragSort, isDragActive } from "./drag.js";
 import { attachSwipeToDelete, detachAllSwipe, isSwipeActive } from "./swipe.js";
 import { isConnected, connectCalendar, disconnectCalendar, fetchEvents, fetchEventsRange, getLastFetchInfo } from "./calendar-sync.js";
+import {
+  isConnected as isWeatherConnected,
+  connectWeather,
+  disconnectWeather,
+  fetchDailyForecast,
+  RAIN_THRESHOLD,
+} from "./weather-sync.js";
 import { hexToRgb, todayStr, toDateStr, formatHeaderDate, addDays, addMonths, escapeHtml, isLongTermProject } from "./utils.js";
 
 const state = {
@@ -22,6 +29,8 @@ const state = {
   calendarConnected: isConnected(),
   calendarEvents: [],
   calendarDate: null,
+  weatherConnected: isWeatherConnected(),
+  weatherByDate: {}, // { "YYYY-MM-DD": { precipProb, code } }
   doneCollapsed: true,
   // 今週タブの月カレンダー
   weekCalAnchor: todayStr(), // 表示中の月の基準日
@@ -64,6 +73,7 @@ watchAuth(async (user) => {
     $("#app-screen").style.display = "flex";
     startSubscriptions();
     if (state.calendarConnected) waitForGisThenRefresh();
+    if (state.weatherConnected) refreshWeather();
   } else {
     $("#login-screen").style.display = "flex";
     $("#app-screen").style.display = "none";
@@ -228,6 +238,14 @@ function renderTodayScreen() {
   const calChip = state.calendarConnected
     ? `<div id="cal-toggle" class="cal-chip on">📅 カレンダー</div>`
     : `<div id="cal-toggle" class="cal-chip">📅 連携</div>`;
+  const weatherChip = state.weatherConnected
+    ? `<div id="weather-toggle" class="cal-chip weather-chip on">☂ 天気</div>`
+    : `<div id="weather-toggle" class="cal-chip weather-chip">☂ 天気</div>`;
+  const forecast = state.weatherByDate[state.selectedDate];
+  const umbrellaBanner =
+    forecast && forecast.precipProb >= RAIN_THRESHOLD
+      ? `<div class="umbrella-banner">☂ 傘を忘れずに（降水確率${forecast.precipProb}%）</div>`
+      : "";
   return `
     <div class="screen">
       <div class="screen-header">
@@ -242,11 +260,15 @@ function renderTodayScreen() {
         <div class="timeline-label">タイムライン</div>
         <div style="display:flex;align-items:center;gap:10px">
           ${calChip}
+          ${weatherChip}
           <div class="timeline-done">${doneN} / ${dayTasks.length} 完了</div>
         </div>
       </div>
       <div class="task-list-scroll scroll">
-        <div class="task-list-pad">${renderTodayTimeline(dayTasks, events, state.projects, state.doneCollapsed)}</div>
+        <div class="task-list-pad">
+          ${umbrellaBanner}
+          ${renderTodayTimeline(dayTasks, events, state.projects, state.doneCollapsed)}
+        </div>
       </div>
     </div>`;
 }
@@ -254,7 +276,7 @@ function renderTodayScreen() {
 function renderWeekScreen() {
   // 「今週」は暦週（月〜日等）ではなく、常に「今日から7日間」のローリング表示にする。
   const weekStart = todayStr();
-  const { html, total } = renderWeekView(state.tasks, weekStart, state.projects, state.weekCalEventsByDate);
+  const { html, total } = renderWeekView(state.tasks, weekStart, state.projects, state.weekCalEventsByDate, state.weatherByDate);
   const weekEndDay = addDays(weekStart, 6);
   const rangeLabel = `${new Date(weekStart + "T00:00:00").getMonth() + 1}月 ${new Date(
     weekStart + "T00:00:00"
@@ -415,6 +437,9 @@ function wireScreenEvents() {
   // today: calendar 連携トグル
   const calToggle = $("#cal-toggle");
   if (calToggle) calToggle.addEventListener("click", onCalendarToggle);
+  // today: 天気連携トグル（傘リマインダー用）
+  const weatherToggle = $("#weather-toggle");
+  if (weatherToggle) weatherToggle.addEventListener("click", onWeatherToggle);
   // week: 日別詳細インライン表示を閉じる
   const weekDetailClose = $("#week-detail-close-btn");
   if (weekDetailClose)
@@ -690,6 +715,38 @@ async function refreshCalendar(dateStr, notify = false) {
   } catch (e) {
     console.error("カレンダー取得エラー", e);
     flash("予定取得エラー: " + (e?.message || e?.error || e));
+  }
+}
+
+// ---------- 天気連携（傘リマインダー） ----------
+async function onWeatherToggle() {
+  if (state.weatherConnected) {
+    disconnectWeather();
+    state.weatherConnected = false;
+    state.weatherByDate = {};
+    renderScreen();
+    flash("天気連携を解除しました");
+    return;
+  }
+  try {
+    await connectWeather();
+    state.weatherConnected = true;
+    renderScreen();
+    await refreshWeather(true);
+  } catch (e) {
+    flash("連携失敗: " + (e?.message || e?.error || e));
+  }
+}
+
+async function refreshWeather(notify = false) {
+  if (!state.weatherConnected) return;
+  try {
+    state.weatherByDate = await fetchDailyForecast();
+    if (state.view === "today") renderScreen();
+    if (notify) flash("天気予報を取得しました");
+  } catch (e) {
+    console.error("天気予報取得エラー", e);
+    flash("天気予報の取得に失敗しました: " + (e?.message || e));
   }
 }
 

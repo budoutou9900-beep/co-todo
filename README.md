@@ -89,7 +89,11 @@ Google Cloud Console 側でリダイレクト先の登録が必要です。
 │   ├── db.js                 Firestore CRUD・リアルタイム同期
 │   ├── tasks.js              繰り返しタスクのロジック・日付リセット
 │   ├── calendar.js           週ストリップ・今週ビューの描画
+│   ├── calendar-sync.js      Google Calendar API（読み取り専用）との連携
+│   ├── weather-sync.js       Open-Meteoの天気予報API連携（傘リマインダー）
 │   ├── timeline.js           今日のタイムライン描画
+│   ├── drag.js                長押し/ドラッグによる並び替え
+│   ├── swipe.js               左スワイプ削除
 │   ├── utils.js               日付・場所タグなどの共通ユーティリティ
 │   └── app.js                  画面制御・儀式モード・ボトムシート・イベント管理
 └── icons/                PWAアイコン
