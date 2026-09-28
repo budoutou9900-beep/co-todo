@@ -308,7 +308,7 @@ body.dragging-task .task-row[data-task-id], body.dragging-task .subtask-row[data
 .picker-row-label { font-size: 14px; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* toast */
-.toast { position: absolute; bottom: 120px; left: 50%; transform: translateX(-50%); z-index: 80; background: rgba(36, 36, 52, 0.96); border: 1px solid rgba(149, 128, 255, 0.3); border-radius: 13px; padding: 11px 18px; font-size: 13px; color: var(--text); box-shadow: 0 6px 24px rgba(0, 0, 0, 0.5); animation: fadein 0.25s ease; white-space: nowrap; }
+.toast { position: absolute; bottom: 120px; left: 50%; transform: translateX(-50%); z-index: 80; background: rgba(36, 36, 52, 0.96); border: 1px solid rgba(149, 128, 255, 0.3); border-radius: 13px; padding: 11px 18px; font-size: 13px; color: var(--text); box-shadow: 0 6px 24px rgba(0, 0, 0, 0.5); animation: fadein 0.25s ease; max-width: calc(100vw - 40px); white-space: normal; word-break: break-word; text-align: center; }
 
 .app-header { flex-shrink: 0; padding: max(14px, env(safe-area-inset-top)) 16px 6px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .app-brand { display: flex; align-items: center; gap: 11px; }

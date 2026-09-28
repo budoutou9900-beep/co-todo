@@ -68,6 +68,13 @@ firebase deploy --only hosting
   即座にnullを返す（＝ボタンが反応しないように見える不具合になる）。ユーザー入力が必要な場面は
   `confirmDeleteProject` や `openProjectModal`（[js/app.js](js/app.js)）のような
   `.confirm-overlay`/`.confirm-sheet` を使ったアプリ内モーダルで実装すること。
+- **外部APIへの新規fetch先は `firebase.json` のCSPにも追加が必要**: 本番（Firebase Hosting）は
+  `firebase.json` の `Content-Security-Policy` ヘッダーで `connect-src` を制限しており、
+  ここに無いドメインへの `fetch()` はブラウザ側で問答無用でブロックされる（コンソールにCSP違反、
+  アプリ側には単なる「取得に失敗しました」としか出ないため気づきにくい）。ローカルの簡易サーバー
+  では本番のヘッダーが付かないため再現せず、`firebase deploy` してから気づくことが多い。同様に
+  `Geolocation`/`Camera`等のブラウザ機能を新たに使うときは `Permissions-Policy` ヘッダーも
+  確認すること（例: 天気連携の位置情報取得用に `geolocation=(self)` へ変更した）。
 
 ## ドキュメント更新ルール（必須）
 
