@@ -242,10 +242,23 @@ function renderTodayScreen() {
     ? `<div id="weather-toggle" class="cal-chip weather-chip on">☂ 天気</div>`
     : `<div id="weather-toggle" class="cal-chip weather-chip">☂ 天気</div>`;
   const forecast = state.weatherByDate[state.selectedDate];
-  const umbrellaBanner =
-    forecast && forecast.precipProb >= RAIN_THRESHOLD
-      ? `<div class="umbrella-banner">☂ 傘を忘れずに（降水確率${forecast.precipProb}%）</div>`
-      : "";
+  const weatherCard = forecast
+    ? `<div class="weather-card">
+        <div class="weather-card-main">
+          <div class="weather-card-icon">${forecast.icon}</div>
+          <div class="weather-card-temps">
+            <span class="weather-card-temp-max">${Math.round(forecast.tempMax)}°</span>
+            <span class="weather-card-temp-min">/ ${Math.round(forecast.tempMin)}°</span>
+          </div>
+          <div class="weather-card-label">${escapeHtml(forecast.label)}</div>
+        </div>
+        ${
+          forecast.precipProb >= RAIN_THRESHOLD
+            ? `<div class="umbrella-banner">☂ 傘を忘れずに（降水確率${forecast.precipProb}%）</div>`
+            : ""
+        }
+      </div>`
+    : "";
   return `
     <div class="screen">
       <div class="screen-header">
@@ -266,7 +279,7 @@ function renderTodayScreen() {
       </div>
       <div class="task-list-scroll scroll">
         <div class="task-list-pad">
-          ${umbrellaBanner}
+          ${weatherCard}
           ${renderTodayTimeline(dayTasks, events, state.projects, state.doneCollapsed)}
         </div>
       </div>

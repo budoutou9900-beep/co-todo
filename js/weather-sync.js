@@ -60,23 +60,55 @@ export function disconnectWeather() {
   } catch (e) {}
 }
 
-// 今日から7日分の降水確率（日次最大値）を取得し、日付キーごとにまとめて返す
-// { "YYYY-MM-DD": { precipProb: number, code: number } }
+// WMO Weather interpretation codes → 表示用の絵文字＋ラベル。
+// https://open-meteo.com/en/docs の daily.weathercode 参照（コード範囲は仕様通り）。
+const WEATHER_CODE_MAP = [
+  { max: 0, icon: "☀️", label: "快晴" },
+  { max: 1, icon: "🌤️", label: "晴れ" },
+  { max: 2, icon: "⛅", label: "晴れ時々くもり" },
+  { max: 3, icon: "☁️", label: "くもり" },
+  { max: 48, icon: "🌫️", label: "霧" },
+  { max: 57, icon: "🌦️", label: "霧雨" },
+  { max: 67, icon: "🌧️", label: "雨" },
+  { max: 77, icon: "❄️", label: "雪" },
+  { max: 82, icon: "🌧️", label: "にわか雨" },
+  { max: 86, icon: "🌨️", label: "にわか雪" },
+  { max: 99, icon: "⛈️", label: "雷雨" },
+];
+function weatherCodeInfo(code) {
+  if (code == null) return { icon: "—", label: "" };
+  const found = WEATHER_CODE_MAP.find((m) => code <= m.max);
+  return found ? { icon: found.icon, label: found.label } : { icon: "—", label: "" };
+}
+
+// 今日から7日分の天気予報（降水確率・気温・天気アイコン/ラベル）を取得し、
+// 日付キーごとにまとめて返す
+// { "YYYY-MM-DD": { precipProb, code, icon, label, tempMax, tempMin } }
 export async function fetchDailyForecast() {
   const loc = getLocation();
   if (!loc) throw new Error("天気連携の位置情報がありません。連携をONにし直してください");
   const url =
     `https://api.open-meteo.com/v1/forecast?latitude=${loc.lat}&longitude=${loc.lon}` +
-    `&daily=precipitation_probability_max,weathercode&timezone=auto&forecast_days=7`;
+    `&daily=precipitation_probability_max,weathercode,temperature_2m_max,temperature_2m_min` +
+    `&timezone=auto&forecast_days=7`;
   const res = await fetch(url);
   if (!res.ok) throw new Error("天気予報の取得に失敗しました (" + res.status + ")");
   const data = await res.json();
   const days = data.daily?.time || [];
   const probs = data.daily?.precipitation_probability_max || [];
   const codes = data.daily?.weathercode || [];
+  const tempsMax = data.daily?.temperature_2m_max || [];
+  const tempsMin = data.daily?.temperature_2m_min || [];
   const byDate = {};
   days.forEach((dateStr, i) => {
-    byDate[dateStr] = { precipProb: probs[i] ?? 0, code: codes[i] ?? null };
+    const code = codes[i] ?? null;
+    byDate[dateStr] = {
+      precipProb: probs[i] ?? 0,
+      code,
+      ...weatherCodeInfo(code),
+      tempMax: tempsMax[i] ?? null,
+      tempMin: tempsMin[i] ?? null,
+    };
   });
   return byDate;
 }
