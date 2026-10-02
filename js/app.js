@@ -242,23 +242,21 @@ function renderTodayScreen() {
     ? `<div id="weather-toggle" class="cal-chip weather-chip on">☂ 天気</div>`
     : `<div id="weather-toggle" class="cal-chip weather-chip">☂ 天気</div>`;
   const forecast = state.weatherByDate[state.selectedDate];
-  const weatherCard = forecast
-    ? `<div class="weather-card">
-        <div class="weather-card-main">
-          <div class="weather-card-icon">${forecast.icon}</div>
-          <div class="weather-card-temps">
-            <span class="weather-card-temp-max">${Math.round(forecast.tempMax)}°</span>
-            <span class="weather-card-temp-min">/ ${Math.round(forecast.tempMin)}°</span>
-          </div>
-          <div class="weather-card-label">${escapeHtml(forecast.label)}</div>
+  // ヘッダーの日付横に収まるコンパクトな天気表示（アイコン・気温・ラベル）。
+  // 傘が必要かどうかの注意文だけは独立した帯でタイムライン上部に残す。
+  const weatherHeader = forecast
+    ? `<div class="weather-header">
+        <span class="weather-header-icon">${forecast.icon}</span>
+        <div class="weather-header-info">
+          <div class="weather-header-temp">${Math.round(forecast.tempMax)}°<span class="weather-header-temp-min">/${Math.round(forecast.tempMin)}°</span></div>
+          <div class="weather-header-label">${escapeHtml(forecast.label)}</div>
         </div>
-        ${
-          forecast.precipProb >= RAIN_THRESHOLD
-            ? `<div class="umbrella-banner">☂ 傘を忘れずに（降水確率${forecast.precipProb}%）</div>`
-            : ""
-        }
       </div>`
     : "";
+  const umbrellaBanner =
+    forecast && forecast.precipProb >= RAIN_THRESHOLD
+      ? `<div class="umbrella-banner">☂ 傘を忘れずに（降水確率${forecast.precipProb}%）</div>`
+      : "";
   return `
     <div class="screen">
       <div class="screen-header">
@@ -267,6 +265,7 @@ function renderTodayScreen() {
             <div class="eyebrow">TODAY</div>
             <div class="title-lg">${formatHeaderDate(state.selectedDate)}</div>
           </div>
+          ${weatherHeader}
         </div>
       </div>
       <div class="timeline-label-row">
@@ -279,7 +278,7 @@ function renderTodayScreen() {
       </div>
       <div class="task-list-scroll scroll">
         <div class="task-list-pad">
-          ${weatherCard}
+          ${umbrellaBanner}
           ${renderTodayTimeline(dayTasks, events, state.projects, state.doneCollapsed)}
         </div>
       </div>
