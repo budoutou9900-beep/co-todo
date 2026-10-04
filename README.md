@@ -96,7 +96,7 @@ Google Cloud Console 側でリダイレクト先の登録が必要です。
 │   ├── swipe.js               左スワイプ削除
 │   ├── utils.js               日付・場所タグなどの共通ユーティリティ
 │   └── app.js                  画面制御・儀式モード・ボトムシート・イベント管理
-└── icons/                PWAアイコン
+└── icons/                PWAアイコン・favicon・ヘッダーロゴ（header-logo.png）
 ```
 
 ## データモデル（Firestore）
