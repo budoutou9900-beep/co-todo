@@ -1,9 +1,8 @@
 @echo off
-rem co-todo デスクトップ版 ワンクリック起動
-rem 初回は依存をインストールしてから起動する。
+rem co-todo desktop launcher (ASCII only: cmd misreads UTF-8 Japanese and breaks the if-block)
 cd /d "%~dp0"
 if not exist "node_modules" (
-  echo [co-todo] 初回セットアップ: npm install ...
+  echo [co-todo] first run: npm install ...
   call npm install
 )
 call npm start
