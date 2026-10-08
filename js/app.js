@@ -15,19 +15,28 @@ import {
 } from "./weather-sync.js";
 import { hexToRgb, todayStr, toDateStr, formatHeaderDate, addDays, addMonths, escapeHtml, isLongTermProject } from "./utils.js";
 
-// iOS PWAでキーボードを閉じたあと、ページ自体がスクロールしたまま/dvhが古い高さのまま残り、
-// 画面下に空白ができることがある。入力欄のフォーカスが外れたらスクロールを戻し、
-// #app-root の高さを一度外して再計算させる（visualViewportで高さを持つ方式は過去に不具合が出たので使わない）
+// iOS PWAでキーボードを閉じたあと、100dvhが古い（小さい）高さのまま残り、画面下に空白ができることがある。
+// ホーム画面から起動したPWA（standalone）かつ縦向きのときだけ、高さを screen の値で固定する。
+// キーボードの開閉には追従させない（visualViewportで追従する方式は過去に不具合が出て戻した）
+function applyStandaloneHeight() {
+  const standalone = window.navigator.standalone || window.matchMedia("(display-mode: standalone)").matches;
+  const portrait = window.innerHeight > window.innerWidth;
+  const root = document.documentElement;
+  if (standalone && portrait) {
+    root.style.setProperty("--app-height", Math.max(screen.width, screen.height) + "px");
+    root.classList.add("fixed-app-height");
+  } else {
+    root.classList.remove("fixed-app-height");
+  }
+}
+applyStandaloneHeight();
+window.addEventListener("orientationchange", () => setTimeout(applyStandaloneHeight, 300));
+window.addEventListener("pageshow", applyStandaloneHeight);
 document.addEventListener("focusout", (e) => {
   if (!/^(INPUT|TEXTAREA|SELECT)$/.test(e.target?.tagName)) return;
+  // キーボードが閉じたあとにページ自体のスクロールが残るのも戻す
   setTimeout(() => {
-    if (/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement?.tagName)) return;
-    window.scrollTo(0, 0);
-    const root = document.getElementById("app-root");
-    if (!root) return;
-    root.style.height = "100%";
-    void root.offsetHeight;
-    root.style.height = "";
+    if (!/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement?.tagName)) window.scrollTo(0, 0);
   }, 120);
 });
 

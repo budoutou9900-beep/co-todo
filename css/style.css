@@ -56,6 +56,8 @@ button { font-family: inherit; }
   flex-direction: column;
 }
 
+html.fixed-app-height #app-root { height: var(--app-height); }
+
 /* ---------- login ---------- */
 .login-screen {
   flex: 1;
