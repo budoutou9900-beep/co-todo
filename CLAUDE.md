@@ -75,6 +75,12 @@ firebase deploy --only hosting
   では本番のヘッダーが付かないため再現せず、`firebase deploy` してから気づくことが多い。同様に
   `Geolocation`/`Camera`等のブラウザ機能を新たに使うときは `Permissions-Policy` ヘッダーも
   確認すること（例: 天気連携の位置情報取得用に `geolocation=(self)` へ変更した）。
+- **iOS PWAでキーボードを閉じると `100dvh` が古い高さのまま残り、画面下に空白ができる**:
+  `js/app.js` 冒頭の `applyStandaloneHeight()` が、standalone縦向きのときだけ `#app-root` の高さを
+  `screen` の値で固定して対処している（`html.fixed-app-height`）。`visualViewport` でキーボードに追従させる
+  方式は過去に不具合が出て戻したので使わない。
+- **`desktop/start.bat` は日本語を書かない（ASCII＋CRLF）**: UTF-8の日本語をcmdがCP932で読み、
+  `if` ブロックが壊れて毎回 `npm install` が走っていた。
 
 ## ドキュメント更新ルール（必須）
 
