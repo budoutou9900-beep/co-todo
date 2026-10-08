@@ -15,6 +15,22 @@ import {
 } from "./weather-sync.js";
 import { hexToRgb, todayStr, toDateStr, formatHeaderDate, addDays, addMonths, escapeHtml, isLongTermProject } from "./utils.js";
 
+// iOS PWAでキーボードを閉じたあと、ページ自体がスクロールしたまま/dvhが古い高さのまま残り、
+// 画面下に空白ができることがある。入力欄のフォーカスが外れたらスクロールを戻し、
+// #app-root の高さを一度外して再計算させる（visualViewportで高さを持つ方式は過去に不具合が出たので使わない）
+document.addEventListener("focusout", (e) => {
+  if (!/^(INPUT|TEXTAREA|SELECT)$/.test(e.target?.tagName)) return;
+  setTimeout(() => {
+    if (/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement?.tagName)) return;
+    window.scrollTo(0, 0);
+    const root = document.getElementById("app-root");
+    if (!root) return;
+    root.style.height = "100%";
+    void root.offsetHeight;
+    root.style.height = "";
+  }, 120);
+});
+
 const state = {
   user: null,
   tasks: [],
