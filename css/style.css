@@ -320,5 +320,5 @@ body.dragging-task .task-row[data-task-id], body.dragging-task .subtask-row[data
 
 .app-header { flex-shrink: 0; padding: max(14px, env(safe-area-inset-top)) 16px 6px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .app-brand { display: flex; align-items: center; gap: 11px; }
-.app-logo { height: 33px; width: auto; display: block; }
+.app-logo { height: 52px; width: auto; display: block; }
 .signout-btn { font-size: 10.5px; color: rgba(240, 240, 245, 0.35); cursor: pointer; padding: 4px 8px; }
