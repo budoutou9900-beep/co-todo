@@ -28,7 +28,9 @@ export function isDragActive() {
 // rowSelector: ドラッグ対象の CSS セレクタ（省略時は ".task-row[data-task-id]"）
 // computeExtra(prevRow, nextRow): order 以外に追加保存したいフィールドを返す任意の関数
 //   （例: 今日タブで「今日中」「+α」セクションをまたいだ移動時に priority を更新）
-export function attachDragSort(listContainer, getTaskById, rowSelector = ".task-row[data-task-id]", computeExtra = null) {
+// handleSelector: 指定すると「並び替えモード」動作になる。ハンドル上でのみ、長押し不要で
+//   即ドラッグを開始する（行本体はスクロール・タップ操作のまま）。
+export function attachDragSort(listContainer, getTaskById, rowSelector = ".task-row[data-task-id]", computeExtra = null, handleSelector = null) {
   if (!listContainer) return;
 
   const state = {
@@ -54,7 +56,10 @@ export function attachDragSort(listContainer, getTaskById, rowSelector = ".task-
     if (e.pointerType === "mouse" && e.button !== 0) return;
     const row = pickRow(e.target);
     if (!row) return;
+    // 並び替えモード: ハンドル以外では何もしない（スクロール/タップに任せる）
+    if (handleSelector && !e.target.closest(handleSelector)) return;
     const isMouse = e.pointerType === "mouse";
+    const needsHold = !isMouse && !handleSelector;
     state.waiting = {
       taskId: row.dataset.taskId,
       el: row,
@@ -62,10 +67,12 @@ export function attachDragSort(listContainer, getTaskById, rowSelector = ".task-
       startY: e.clientY,
       isMouse,
       // マウスは長押し不要（少し動かしたら即ドラッグ）。タッチ/ペンは長押しで開始。
-      timer: isMouse ? null : setTimeout(() => beginDrag(e), LONG_PRESS_MS),
-      hintTimer: isMouse ? null : setTimeout(() => row.classList.add("press-hold"), PRESS_HINT_MS),
+      timer: needsHold ? setTimeout(() => beginDrag(e), LONG_PRESS_MS) : null,
+      hintTimer: needsHold ? setTimeout(() => row.classList.add("press-hold"), PRESS_HINT_MS) : null,
     };
     activeGestureCount++;
+    // ハンドルは touch-action:none なのでスクロールと競合しない。押した瞬間に掴む。
+    if (handleSelector) beginDrag(e);
   }
 
   function beginDrag(originEvent) {

@@ -62,6 +62,7 @@ const state = {
   weekCalEventsByDate: {}, // { "YYYY-MM-DD": [ev,...] }
   weekCalLoadedMonth: null, // 取得済みの月キー "YYYY-MM"
   weekDetailDate: null, // 今週タブ内で選択中の日付詳細（月カレンダーの日付タップで設定）
+  reorderMode: false, // 今日タブの並び替えモード（ハンドルで即ドラッグ。保存はしない）
 };
 
 const PROJECT_COLORS = [
@@ -180,6 +181,7 @@ async function carryOverOverdueTasks() {
 $$(".tab-item").forEach((el) => {
   el.addEventListener("click", () => {
     state.view = el.dataset.view;
+    state.reorderMode = false;
     renderScreen();
     updateTabBar();
     // 今週タブに来たら月カレンダーの予定を取得（連携済みのとき）
@@ -283,7 +285,7 @@ function renderTodayScreen() {
       ? `<div class="umbrella-banner">☂ 傘を忘れずに（降水確率${forecast.precipProb}%）</div>`
       : "";
   return `
-    <div class="screen">
+    <div class="screen${state.reorderMode ? " reorder-mode" : ""}">
       <div class="screen-header">
         <div style="display:flex;justify-content:space-between;align-items:flex-start">
           <div>
@@ -296,6 +298,9 @@ function renderTodayScreen() {
       <div class="timeline-label-row">
         <div class="timeline-label">タイムライン</div>
         <div style="display:flex;align-items:center;gap:10px">
+          <div id="reorder-toggle" class="cal-chip reorder-chip${state.reorderMode ? " on" : ""}">${
+            state.reorderMode ? "完了" : "↕ 並び替え"
+          }</div>
           ${calChip}
           ${weatherChip}
           <div class="timeline-done">${doneN} / ${dayTasks.length} 完了</div>
@@ -477,6 +482,13 @@ function wireScreenEvents() {
   // today: 天気連携トグル（傘リマインダー用）
   const weatherToggle = $("#weather-toggle");
   if (weatherToggle) weatherToggle.addEventListener("click", onWeatherToggle);
+  // today: 並び替えモードの切り替え
+  const reorderToggle = $("#reorder-toggle");
+  if (reorderToggle)
+    reorderToggle.addEventListener("click", () => {
+      state.reorderMode = !state.reorderMode;
+      renderScreen();
+    });
   // week: 日別詳細インライン表示を閉じる
   const weekDetailClose = $("#week-detail-close-btn");
   if (weekDetailClose)
@@ -590,14 +602,23 @@ function wireScreenEvents() {
         const p = prevRow?.dataset.priority || nextRow?.dataset.priority || "today";
         return { priority: p };
       };
-      attachDragSort(pad, (id) => state.tasks.find((t) => t.id === id), ".task-row[data-task-id]", computeExtraPriority);
+      // 並び替えモード中はハンドルでの即ドラッグ＋スワイプ削除なし（誤削除防止）
+      const reorder = state.reorderMode && state.view === "today";
+      attachDragSort(
+        pad,
+        (id) => state.tasks.find((t) => t.id === id),
+        ".task-row[data-task-id]",
+        computeExtraPriority,
+        reorder ? ".drag-handle" : null
+      );
       // 左スワイプでタスクを削除
-      attachSwipeToDelete(pad, {
-        rowSelector: ".task-row[data-task-id]",
-        foregroundSelector: ".task-card",
-        getId: (row) => row.dataset.taskId,
-        onDelete: (id) => deleteTaskById(id),
-      });
+      if (!reorder)
+        attachSwipeToDelete(pad, {
+          rowSelector: ".task-row[data-task-id]",
+          foregroundSelector: ".task-card",
+          getId: (row) => row.dataset.taskId,
+          onDelete: (id) => deleteTaskById(id),
+        });
     }
   } else {
     if (state.view === "projects") {

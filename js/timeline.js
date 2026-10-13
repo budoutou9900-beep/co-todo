@@ -42,6 +42,7 @@ function renderTaskCard(t, projectMap) {
           <div class="task-title-1line" style="${titleStyle}">${escapeHtml(t.title)}</div>
           ${repeatChip}
           ${projChip}
+          <span class="drag-handle" aria-hidden="true">⋮⋮</span>
         </div>
       </div>`;
 }

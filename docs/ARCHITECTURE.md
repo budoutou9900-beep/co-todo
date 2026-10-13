@@ -77,6 +77,10 @@ function renderScreen() {
   `swipe.js`のスワイプ削除に譲るが、縦優勢・斜め方向の揺れではキャンセルしない
   （指の自然な手ぶれで縦ドラッグが始まらなくなる不具合の対策）。
   マウス: 縦方向の移動があれば即開始（横移動はスワイプ削除に譲る）。
+- 並び替えモード: `attachDragSort` の第5引数 `handleSelector`（今日タブでは `.drag-handle`）を渡すと、
+  そのハンドル上でのみ長押しなしで即ドラッグを開始する。ハンドルだけ `touch-action: none` にして
+  縦スクロールと競合させない。`state.reorderMode` が真のときだけ `app.js` が渡し、同時に
+  `attachSwipeToDelete` はattachしない。ハンドルは常時描画し、CSS（`.reorder-mode .drag-handle`）で出し分ける。
 - ドラッグ確定時、隣接する2行の `order` の中間値を新しい `order` として計算し、Firestoreへ
   `updateTask(id, { order: newOrder, ...extraChanges })` する。
 - `computeExtra(prevRow, nextRow)` はオプションのコールバックで、`order`以外に更新したい
