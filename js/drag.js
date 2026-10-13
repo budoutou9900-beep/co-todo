@@ -1,6 +1,6 @@
 // 今日タスクリストの長押しドラッグ並び替え。プロジェクト内タスクにも汎用利用される。
 // - 対象: data-task-id を持つ .task-row のみ（カレンダー予定は無視）
-// - 開始判定: 400ms 長押し中に横優勢の動きが 6px 以上あったらキャンセル（swipe.jsに譲る）。
+// - 開始判定: 300ms 長押し中に横優勢の動きが 10px 以上あったらキャンセル（swipe.jsに譲る）。
 //   縦優勢・斜め方向の揺れはキャンセルしない（指の自然な手ぶれでドラッグが始まらなくなる不具合の対策）
 // - 並び替え中は他の要素のクリック（タップ編集・完了切替）を抑制
 // - 確定時: 隣接2要素の order の中間値を採用、現在の要素の order を更新
@@ -8,8 +8,12 @@
 
 import { updateTask } from "./db.js";
 
-const LONG_PRESS_MS = 400;
-const MOVE_TOLERANCE = 6;
+const LONG_PRESS_MS = 300;
+// 指の自然な手ぶれで長押しが途切れないよう、6px→10pxに広げている
+const MOVE_TOLERANCE = 10;
+// 長押し中に「掴めそう」を伝える見た目（.press-hold）を出すまでの待ち。
+// 短いタップやスクロール開始の瞬間にチラつかないよう、少し遅らせる。
+const PRESS_HINT_MS = 120;
 
 let activeAttaches = [];
 // 現在進行中（長押し待ち含む）のジェスチャー数。0より大きい間はレンダリングを止めたい
@@ -40,6 +44,8 @@ export function attachDragSort(listContainer, getTaskById, rowSelector = ".task-
   function cancelWait() {
     if (!state.waiting) return;
     clearTimeout(state.waiting.timer);
+    clearTimeout(state.waiting.hintTimer);
+    state.waiting.el.classList.remove("press-hold");
     state.waiting = null;
     activeGestureCount = Math.max(0, activeGestureCount - 1);
   }
@@ -57,13 +63,16 @@ export function attachDragSort(listContainer, getTaskById, rowSelector = ".task-
       isMouse,
       // マウスは長押し不要（少し動かしたら即ドラッグ）。タッチ/ペンは長押しで開始。
       timer: isMouse ? null : setTimeout(() => beginDrag(e), LONG_PRESS_MS),
+      hintTimer: isMouse ? null : setTimeout(() => row.classList.add("press-hold"), PRESS_HINT_MS),
     };
     activeGestureCount++;
   }
 
   function beginDrag(originEvent) {
     if (!state.waiting) return;
-    const { el, taskId } = state.waiting;
+    const { el, taskId, hintTimer } = state.waiting;
+    clearTimeout(hintTimer);
+    el.classList.remove("press-hold");
     state.waiting = null;
     // ドラッグできるのは data-task-id を持つタスク行のみだが、配置先の境界には
     // カレンダー予定行(.task-row)も含める＝予定と予定の間に挿入できる。

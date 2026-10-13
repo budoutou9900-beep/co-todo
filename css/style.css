@@ -128,6 +128,7 @@ html.fixed-app-height #app-root { height: var(--app-height); }
 
 .task-row { display: flex; margin-bottom: 7px; cursor: pointer; touch-action: pan-y; }
 .task-row.dragging, .subtask-row.dragging { opacity: 0.92; transform: scale(1.02); transition: transform 0.15s ease; }
+.task-row.press-hold, .subtask-row.press-hold { transform: scale(0.985); background: rgba(149, 128, 255, 0.08); transition: transform 0.12s ease, background 0.12s ease; }
 .drag-placeholder { background: rgba(149, 128, 255, 0.06); border: 1px dashed rgba(149, 128, 255, 0.2); border-radius: 11px; }
 body.dragging-task { user-select: none; -webkit-user-select: none; }
 body.dragging-task .task-row[data-task-id], body.dragging-task .subtask-row[data-task-id] { transition: transform 0.18s ease; }
