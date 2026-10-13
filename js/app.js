@@ -661,7 +661,11 @@ function confirmDeleteProject(id, row) {
   overlay.innerHTML = `
     <div class="confirm-sheet">
       <div class="confirm-title">「${escapeHtml(p?.title ?? "")}」を削除しますか？</div>
-      <div class="confirm-body">このプロジェクトと所属タスク ${childCount} 件がすべて削除されます。この操作は取り消せません。</div>
+      <div class="confirm-body">${
+        childCount
+          ? `所属タスク ${childCount} 件は削除されず、プロジェクトとの紐づけだけ外れます。`
+          : ""
+      }プロジェクトの削除は取り消せません。</div>
       <button class="confirm-btn-delete">削除する</button>
       <button class="confirm-btn-cancel">キャンセル</button>
     </div>`;
@@ -676,9 +680,14 @@ function confirmDeleteProject(id, row) {
 
 async function deleteProjectById(id) {
   try {
-    // 所属タスクをまとめて削除してからプロジェクト本体を削除
-    const childIds = state.tasks.filter((t) => t.projectId === id).map((t) => t.id);
-    await Promise.all(childIds.map((tid) => deleteTask(tid)));
+    // 所属タスクは残し、プロジェクトとの紐づけだけ外してからプロジェクト本体を削除する。
+    // 日付未設定のタスクはプロジェクト内でしか見えなかったため、紐づけを外すとどの画面にも
+    // 出なくなる。見失わないよう今日の日付を入れる。
+    const today = todayStr();
+    const children = state.tasks.filter((t) => t.projectId === id);
+    await Promise.all(
+      children.map((t) => updateTask(t.id, { projectId: null, ...(t.date ? {} : { date: today }) }))
+    );
     await deleteProject(id);
     flash("プロジェクトを削除しました");
   } catch (e) {
