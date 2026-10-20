@@ -598,7 +598,13 @@ function wireScreenEvents() {
       // 「今日中」「+α」セクションをまたいで移動したら priority も更新する。
       // 隣接する行（カレンダー予定行にも data-priority="today" が付与されている）の
       // priority を優先的に継承。
-      const computeExtraPriority = (prevRow, nextRow) => {
+      // 「+α」見出しより後ろに置かれたら extra、手前なら today（隣接行だけだと
+      // 最後の予定の下＝見出し直前の位置が today/extra のどちらか判別できない）。
+      const computeExtraPriority = (prevRow, nextRow, el) => {
+        const header = pad.querySelector(".extra-section-header");
+        if (header && el) {
+          return { priority: header.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING ? "extra" : "today" };
+        }
         const p = prevRow?.dataset.priority || nextRow?.dataset.priority || "today";
         return { priority: p };
       };

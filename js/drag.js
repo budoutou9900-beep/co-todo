@@ -86,6 +86,9 @@ export function attachDragSort(listContainer, getTaskById, rowSelector = ".task-
     const rows = Array.from(listContainer.querySelectorAll(rowSelector.split("[")[0]));
     const currentIndex = rows.indexOf(el);
     if (currentIndex < 0) return;
+    // 「+α」見出しも配置先の境界に加える（最後の予定の下＝見出しの手前にドロップできるように）。
+    // order計算の隣接行には含めない（rowsとは別に持つ）。
+    const anchors = Array.from(listContainer.querySelectorAll(`${rowSelector.split("[")[0]}, .extra-section-header`)).filter((r) => r !== el);
     const rect = el.getBoundingClientRect();
     const height = rect.height;
     const offsetY = originEvent.clientY - rect.top;
@@ -111,7 +114,7 @@ export function attachDragSort(listContainer, getTaskById, rowSelector = ".task-
       taskId,
       el,
       placeholder,
-      rows: rows.filter((r) => r !== el),
+      rows: anchors,
       height,
       offsetY,
       currentIndex,
@@ -194,11 +197,15 @@ export function attachDragSort(listContainer, getTaskById, rowSelector = ".task-
     }
     const prev = newOrderRows[newIndex - 1];
     const next = newOrderRows[newIndex + 1];
+    const extraChanges = computeExtra ? computeExtra(prev, next, d.el) : {};
+    // 「今日中」と「+α」は別セクションでorderが独立して並ぶ。移動先と違うセクションの
+    // 隣接行（例: 最後の予定の下に置くときの+α先頭タスク）でorderを平均すると、
+    // 予定より前に並んでしまうので、同じセクションの隣接行だけを基準にする。
+    const sameSection = (r) => !extraChanges.priority || r?.dataset.priority === extraChanges.priority;
     const newOrder = computeBetween(
-      prev ? getOrderValue(prev) : null,
-      next ? getOrderValue(next) : null
+      prev && sameSection(prev) ? getOrderValue(prev) : null,
+      next && sameSection(next) ? getOrderValue(next) : null
     );
-    const extraChanges = computeExtra ? computeExtra(prev, next) : {};
     state.dragging = null;
     activeGestureCount = Math.max(0, activeGestureCount - 1);
     // タップ抑制のため少し待ってからイベント有効化（次の onclick を無視）
