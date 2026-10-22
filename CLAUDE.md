@@ -84,6 +84,10 @@ firebase deploy --only hosting
   さらに `.git/` の中身まで公開されていた。`**/.*` はドットフォルダ自体にしか一致せず中のファイルは
   除外されないため、`**/.*/**` も必要）。デプロイ時の「found N files」が25前後であることを確認する。ルート直下の `*.png`/`*.jpg`/`*.md`/`*.zip` 等は拡張子で除外しているので、
   アプリが使う画像は必ず `icons/` 配下に置くこと。新しい作業用フォルダを作ったら `ignore` にも追加する。
+- **JS/CSS/HTMLは `Cache-Control: no-cache` で配信している**: Hostingの既定は `max-age=3600` で、
+  `sw.js` がネットワーク優先でも fetch がブラウザのHTTPキャッシュに当たり、デプロイ後最大1時間
+  古い `app.js` が動いていた（取り込みリンクをPWAではなくSafari側で開いたときに旧挙動になった）。
+  `firebase.json` の `headers` で拡張子ごとに `no-cache`（ETagで再検証）を付けている。
 - **`desktop/start.bat` は日本語を書かない（ASCII＋CRLF）**: UTF-8の日本語をcmdがCP932で読み、
   `if` ブロックが壊れて毎回 `npm install` が走っていた。
 
