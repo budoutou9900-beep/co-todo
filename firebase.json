@@ -6,9 +6,22 @@
       "**/.*",
       "**/node_modules/**",
       "desktop/**",
-      "Personal task management app UI.zip",
-      "README.md",
-      "firestore.rules"
+      "docs/**",
+      "Buto-do プロモーション動画/**",
+      "firestore.rules",
+      "skills-lock.json",
+      "*.md",
+      "*.zip",
+      "*.lnk",
+      "*.jpg",
+      "*.jpeg",
+      "*.png",
+      "*.gif",
+      "*.webp",
+      "*.heic",
+      "*.mp4",
+      "*.mov",
+      "*.pdf"
     ],
     "headers": [
       {

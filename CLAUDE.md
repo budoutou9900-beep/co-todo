@@ -79,6 +79,10 @@ firebase deploy --only hosting
   `js/app.js` 冒頭の `applyStandaloneHeight()` が、standalone縦向きのときだけ `#app-root` の高さを
   `screen` の値で固定して対処している（`html.fixed-app-height`）。`visualViewport` でキーボードに追従させる
   方式は過去に不具合が出て戻したので使わない。
+- **プロジェクトフォルダ全体がHostingの配信元**: `firebase.json` の `"public": "."` のため、
+  `ignore` に無いファイルはすべて本番URLで公開される（以前は写真・zip・プロモ素材・CLAUDE.md まで
+  公開されていた）。ルート直下の `*.png`/`*.jpg`/`*.md`/`*.zip` 等は拡張子で除外しているので、
+  アプリが使う画像は必ず `icons/` 配下に置くこと。新しい作業用フォルダを作ったら `ignore` にも追加する。
 - **`desktop/start.bat` は日本語を書かない（ASCII＋CRLF）**: UTF-8の日本語をcmdがCP932で読み、
   `if` ブロックが壊れて毎回 `npm install` が走っていた。
 

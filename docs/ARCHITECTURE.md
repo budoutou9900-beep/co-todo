@@ -155,6 +155,10 @@ Open-Meteo APIに直接リクエストする（サーバーを経由しない・
 
 - **Firebase Hosting**を使用（GitHub Pagesは`authDomain`が別ドメインになりiOSのITPで
   ログインループが発生するため不採用。詳細は[README.md](../README.md)）。
+- **配信対象**: `firebase.json` は `"public": "."`（プロジェクトフォルダ全体）なので、`ignore` で
+  アプリ本体（`index.html`・`manifest.json`・`sw.js`・`css/`・`js/`・`icons/`）以外を除外している。
+  ルート直下の画像・zip・動画・Markdown などは拡張子で、`docs/`・`desktop/`・プロモ動画素材は
+  フォルダごと除外。
 - **Service Worker**（[sw.js](../sw.js)）: `index.html`はnavigateリクエスト時にネットワーク優先
   ＋オフライン時のみキャッシュフォールバック。JS/CSSもネットワーク優先（開発中の変更を
   即時反映するため）でキャッシュはあくまでフォールバック用途。
