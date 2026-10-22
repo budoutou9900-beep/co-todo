@@ -72,6 +72,16 @@ const PROJECT_COLORS = [
   "#7986cb", "#e066ff", "#ff85a2", "#26c6da", "#a0785a",
 ];
 
+// 他のプロジェクトとかぶらない色をランダムに選ぶ。excludeProject を渡すとその現在色も除外する
+// （「色を変える」ボタンで押しても同じ色のままになるのを防ぐ）。全色使用中なら現在色以外から選ぶ。
+function pickProjectColor(excludeProject = null) {
+  const current = excludeProject?.color;
+  const used = new Set(state.projects.filter((p) => p.id !== excludeProject?.id).map((p) => p.color));
+  let candidates = PROJECT_COLORS.filter((c) => c !== current && !used.has(c));
+  if (!candidates.length) candidates = PROJECT_COLORS.filter((c) => c !== current);
+  return candidates[Math.floor(Math.random() * candidates.length)];
+}
+
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 
@@ -426,6 +436,9 @@ function renderProjectCard(p) {
             <div class="project-stat-label">締切</div>
           </div>
         </div>
+        <div class="project-color-btn" data-shuffle-color="${p.id}">
+          <span class="project-color-dot" style="background:${p.color};box-shadow:0 0 6px rgba(${r},${g},${b},0.6)"></span>色を変える
+        </div>
         <div class="project-expand-hint">${p.open ? "閉じる ▲" : "開く ▼"}</div>
       </div>
       ${
@@ -565,6 +578,18 @@ function wireScreenEvents() {
       e.stopPropagation();
       const p = state.projects.find((x) => x.id === el.dataset.editProject);
       if (p) openProjectModal(p);
+    });
+  });
+  // projects: 色をランダムに変更（即保存。onSnapshot経由で再描画される）
+  $$("[data-shuffle-color]").forEach((el) => {
+    el.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const p = state.projects.find((x) => x.id === el.dataset.shuffleColor);
+      if (!p) return;
+      updateProject(p.id, { color: pickProjectColor(p) }).catch((err) => {
+        console.error("色の変更に失敗:", err);
+        flash("色の変更に失敗しました");
+      });
     });
   });
   // projects: 小タスク = タップで編集、チェックだけ完了トグル
@@ -856,7 +881,7 @@ function openProjectModal(existingProject = null) {
       await updateProject(existingProject.id, { title, dueDate: dueInput.value || null });
       flash("プロジェクトを更新しました");
     } else {
-      const color = PROJECT_COLORS[state.projects.length % PROJECT_COLORS.length];
+      const color = pickProjectColor();
       await addProject({ title, color, dueDate: dueInput.value || null, open: true });
       flash("プロジェクトを追加しました");
     }
