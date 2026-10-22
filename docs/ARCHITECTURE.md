@@ -56,6 +56,13 @@ function renderScreen() {
 この設計により「別デバイスで編集した内容が自動的に反映される」というマルチデバイス同期が、
 特別な同期ロジックを書かずに実現されている。
 
+**取り込みリンク（`#import=`）の待ち合わせ**: 起動時に `captureImportLink()` がハッシュを読み、
+`sessionStorage` に退避してから `history.replaceState` でハッシュを消す。確認モーダルは
+「`state.user` がある」かつ「`subscribeToProjects` の初回通知を受け取った」（`projectsSnapshotReceived`）
+の両方を満たした時点で `maybeOpenImportModal()` から一度だけ開く。プロジェクト名→IDの照合に
+`state.projects` が必要なためで、未ログイン時はログイン後の購読開始を待つ。sessionStorage を
+使うのは、モバイルのリダイレクト方式ログインでページ遷移しても退避内容が残るようにするため。
+
 **ジェスチャー中の再描画抑制**: `requestRender()` は、`drag.js`/`swipe.js`が公開する
 `isDragActive()` / `isSwipeActive()` を確認し、ドラッグ並び替えやスワイプ削除のジェスチャーが
 進行中なら描画を保留して次フレームに再チェックする。これが無いと、自分と無関係なFirestore更新

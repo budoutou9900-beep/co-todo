@@ -105,6 +105,7 @@ watchAuth(async (user) => {
     $("#app-screen").style.display = "none";
     if (state.unsubTasks) state.unsubTasks();
     if (state.unsubProjects) state.unsubProjects();
+    projectsSnapshotReceived = false;
   }
 });
 
@@ -134,7 +135,9 @@ function startSubscriptions() {
   });
   state.unsubProjects = subscribeToProjects((projects) => {
     state.projects = projects;
+    projectsSnapshotReceived = true;
     requestRender();
+    maybeOpenImportModal();
   });
 }
 
@@ -937,27 +940,158 @@ function openBulkAddModal() {
       return;
     }
     overlay.remove();
-    const now = Date.now();
-    await Promise.all(
-      tasks.map((t, i) => {
-        const project = t.project
-          ? state.projects.find((p) => p.title.toLowerCase() === t.project.toLowerCase())
-          : null;
-        return addTask({
-          title: t.title,
-          date: t.date || null,
-          projectId: project?.id || null,
-          priority: t.priority === "extra" ? "extra" : "today",
-          order: now + i,
-        });
-      })
-    );
-    flash(`${tasks.length}件のタスクを追加しました`);
+    await addBulkTasks(tasks);
   });
   cancelBtn.addEventListener("click", () => overlay.remove());
   overlay.addEventListener("click", (e) => { if (e.target === overlay) overlay.remove(); });
   document.getElementById("app-root").appendChild(overlay);
   textInput.focus();
+}
+
+// parseBulkTasks の結果をFirestoreに登録する（一括追加モーダルと取り込みリンクで共用）
+function findProjectByName(name) {
+  return name ? state.projects.find((p) => p.title.toLowerCase() === name.toLowerCase()) : null;
+}
+
+async function addBulkTasks(tasks) {
+  const now = Date.now();
+  await Promise.all(
+    tasks.map((t, i) => {
+      const project = findProjectByName(t.project);
+      return addTask({
+        title: t.title,
+        date: t.date || null,
+        projectId: project?.id || null,
+        priority: t.priority === "extra" ? "extra" : "today",
+        order: now + i,
+      });
+    })
+  );
+  flash(`${tasks.length}件のタスクを追加しました`);
+}
+
+// ---------- 取り込みリンク ----------
+// https://…/#import=<タスクコード> を開くと、確認モーダルを経てタスクを一括追加する。
+// クエリではなくハッシュを使うのは、タスク内容をサーバー（Hostingのアクセスログ等）に送らないため。
+// リンクは誰でも作れる外部入力なので、確認ボタンを押すまで絶対に書き込まない。
+const IMPORT_STORAGE_KEY = "pendingImportTasks";
+const IMPORT_MAX_TASKS = 100;
+const IMPORT_MAX_TITLE = 200;
+let projectsSnapshotReceived = false;
+let importModalShown = false;
+
+// base64url(UTF-8) → 失敗したら URIエンコードされたJSON の順に試す。
+// atob は1バイト=1文字のバイナリ文字列を返すので、日本語が化けないよう TextDecoder で戻す。
+function decodeImportCode(code) {
+  try {
+    const b64 = code.replace(/-/g, "+").replace(/_/g, "/");
+    const bin = atob(b64 + "=".repeat((4 - (b64.length % 4)) % 4));
+    const bytes = Uint8Array.from(bin, (c) => c.charCodeAt(0));
+    const tasks = parseBulkTasks(new TextDecoder("utf-8", { fatal: true }).decode(bytes));
+    if (tasks) return tasks;
+  } catch {}
+  try {
+    return parseBulkTasks(decodeURIComponent(code));
+  } catch {
+    return null;
+  }
+}
+
+// 外部入力なので一括追加モーダルより厳しめに整える（件数・文字数の上限、日付形式）
+function sanitizeImportTasks(tasks) {
+  return tasks.slice(0, IMPORT_MAX_TASKS).map((t) => ({
+    title: Array.from(t.title).slice(0, IMPORT_MAX_TITLE).join(""),
+    date: typeof t.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(t.date) ? t.date : null,
+    project: typeof t.project === "string" ? Array.from(t.project).slice(0, IMPORT_MAX_TITLE).join("") : "",
+    priority: t.priority === "extra" ? "extra" : "today",
+  }));
+}
+
+// 起動時に一度だけ呼ぶ。ハッシュはすぐ消し、内容は sessionStorage に退避する
+// （ハッシュを残すとリロードのたびに再度取り込まれて二重登録になるため）。
+// ログイン待ちの間にリダイレクト方式の認証でページ遷移しても sessionStorage なら残る。
+function captureImportLink() {
+  const m = location.hash.match(/^#import=([\s\S]*)$/);
+  if (!m) return;
+  history.replaceState(null, "", location.pathname + location.search);
+  const tasks = m[1] ? decodeImportCode(m[1]) : null;
+  if (!tasks || tasks.length === 0) {
+    flash("取り込みリンクを読み取れませんでした");
+    return;
+  }
+  try {
+    sessionStorage.setItem(IMPORT_STORAGE_KEY, JSON.stringify(sanitizeImportTasks(tasks)));
+  } catch (e) {
+    console.error("取り込みリンクの退避に失敗:", e);
+    flash("取り込みリンクを読み取れませんでした");
+  }
+}
+
+function takePendingImport() {
+  try {
+    const raw = sessionStorage.getItem(IMPORT_STORAGE_KEY);
+    sessionStorage.removeItem(IMPORT_STORAGE_KEY);
+    // sessionStorage の中身も念のため再検証する
+    const tasks = raw ? parseBulkTasks(raw) : null;
+    return tasks && tasks.length ? sanitizeImportTasks(tasks) : null;
+  } catch {
+    return null;
+  }
+}
+
+// プロジェクト名の照合に state.projects が要るので、ログイン済みかつ
+// プロジェクトの初回スナップショットを受け取ってから開く
+function maybeOpenImportModal() {
+  if (importModalShown || !state.user || !projectsSnapshotReceived) return;
+  let raw = null;
+  try { raw = sessionStorage.getItem(IMPORT_STORAGE_KEY); } catch {}
+  if (!raw) return;
+  importModalShown = true;
+  openImportModal();
+}
+
+function openImportModal() {
+  // 開いた時点で退避分は消す（追加中にリロードされても二重登録しないように）
+  const tasks = takePendingImport();
+  if (!tasks) {
+    flash("取り込みリンクを読み取れませんでした");
+    return;
+  }
+  const rows = tasks
+    .map((t) => {
+      const meta = [];
+      if (t.date) meta.push(escapeHtml(t.date));
+      if (t.project) {
+        meta.push(
+          findProjectByName(t.project)
+            ? escapeHtml(t.project)
+            : `${escapeHtml(t.project)}<span class="import-note">（未作成のためプロジェクト未設定で追加）</span>`
+        );
+      }
+      if (t.priority === "extra") meta.push("+α");
+      return `<li class="import-row">
+        <div class="import-row-title">${escapeHtml(t.title)}</div>
+        ${meta.length ? `<div class="import-row-meta">${meta.join(" ・ ")}</div>` : ""}
+      </li>`;
+    })
+    .join("");
+  const overlay = document.createElement("div");
+  overlay.className = "confirm-overlay";
+  overlay.innerHTML = `
+    <div class="confirm-sheet">
+      <div class="confirm-title">${tasks.length}件のタスクを追加しますか？</div>
+      <div class="confirm-body">取り込みリンクから読み取った内容です。確認してから追加してください。</div>
+      <ul class="import-list">${rows}</ul>
+      <button class="confirm-btn-delete confirm-btn-primary" id="import-save">追加する</button>
+      <button class="confirm-btn-cancel">キャンセル</button>
+    </div>`;
+  overlay.querySelector("#import-save").addEventListener("click", async () => {
+    overlay.remove();
+    await addBulkTasks(tasks);
+  });
+  overlay.querySelector(".confirm-btn-cancel").addEventListener("click", () => overlay.remove());
+  overlay.addEventListener("click", (e) => { if (e.target === overlay) overlay.remove(); });
+  document.getElementById("app-root").appendChild(overlay);
 }
 
 // ---------- bottom sheet (add/edit task) ----------
@@ -1248,4 +1382,12 @@ document.addEventListener("visibilitychange", () => {
 });
 
 // ---------- init ----------
+captureImportLink();
+// 開いたままのタブのURL欄に取り込みリンクを貼った場合はリロードされずハッシュだけ変わる
+window.addEventListener("hashchange", () => {
+  if (!location.hash.startsWith("#import=")) return;
+  captureImportLink();
+  importModalShown = false;
+  maybeOpenImportModal();
+});
 updateTabBar();
