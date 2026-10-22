@@ -72,6 +72,16 @@ const PROJECT_COLORS = [
   "#7986cb", "#e066ff", "#ff85a2", "#26c6da", "#a0785a",
 ];
 
+// パレットからランダムに1色選ぶ。色かぶりを避けるため、他のプロジェクトが使っていない色を優先し、
+// 全色使用済みなら今の色以外から選ぶ。extraUsed は同じ処理内でまだ反映前の作成分を渡す用
+function pickProjectColor(currentColor = null, extraUsed = []) {
+  const used = new Set([...state.projects.map((p) => p.color), ...extraUsed]);
+  const others = PROJECT_COLORS.filter((c) => c !== currentColor);
+  const unused = others.filter((c) => !used.has(c));
+  const pool = unused.length ? unused : others;
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 
@@ -428,6 +438,10 @@ function renderProjectCard(p) {
   }</div>
             <div class="project-stat-label">締切</div>
           </div>
+          <button class="project-color-btn" data-shuffle-color="${p.id}" aria-label="色を変える">
+            <div class="project-color-swatch" style="background:${p.color};box-shadow:0 0 6px rgba(${r},${g},${b},0.6)"></div>
+            <div class="project-stat-label">色</div>
+          </button>
         </div>
         <div class="project-expand-hint">${p.open ? "閉じる ▲" : "開く ▼"}</div>
       </div>
@@ -568,6 +582,19 @@ function wireScreenEvents() {
       e.stopPropagation();
       const p = state.projects.find((x) => x.id === el.dataset.editProject);
       if (p) openProjectModal(p);
+    });
+  });
+  // projects: 色の見本をタップすると別の色にランダムで変える
+  $$("[data-shuffle-color]").forEach((el) => {
+    el.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const id = el.dataset.shuffleColor;
+      const p = state.projects.find((x) => x.id === id);
+      if (!p) return;
+      updateProject(id, { color: pickProjectColor(p.color) }).catch((err) => {
+        console.error("色の変更に失敗:", err);
+        flash("色の変更に失敗しました");
+      });
     });
   });
   // projects: 小タスク = タップで編集、チェックだけ完了トグル
@@ -859,7 +886,7 @@ function openProjectModal(existingProject = null) {
       await updateProject(existingProject.id, { title, dueDate: dueInput.value || null });
       flash("プロジェクトを更新しました");
     } else {
-      const color = PROJECT_COLORS[state.projects.length % PROJECT_COLORS.length];
+      const color = pickProjectColor();
       await addProject({ title, color, dueDate: dueInput.value || null, open: true });
       flash("プロジェクトを追加しました");
     }
@@ -953,21 +980,47 @@ function findProjectByName(name) {
   return name ? state.projects.find((p) => p.title.toLowerCase() === name.toLowerCase()) : null;
 }
 
+// 未作成のプロジェクト名は先にまとめて作成する。同名（大文字小文字違い含む）は1つにまとめ、
+// onSnapshot の反映を待たずに使えるよう作成したIDを手元の Map で引く
+async function ensureProjectsByName(tasks) {
+  const ids = new Map();
+  const createdColors = [];
+  for (const t of tasks) {
+    if (!t.project) continue;
+    const key = t.project.toLowerCase();
+    if (ids.has(key)) continue;
+    const existing = findProjectByName(t.project);
+    if (existing) {
+      ids.set(key, existing.id);
+      continue;
+    }
+    const color = pickProjectColor(null, createdColors);
+    const ref = await addProject({ title: t.project, color, dueDate: null, open: true });
+    ids.set(key, ref.id);
+    createdColors.push(color);
+  }
+  return { ids, created: createdColors.length };
+}
+
 async function addBulkTasks(tasks) {
+  const { ids: projectIds, created } = await ensureProjectsByName(tasks);
   const now = Date.now();
   await Promise.all(
     tasks.map((t, i) => {
-      const project = findProjectByName(t.project);
       return addTask({
         title: t.title,
         date: t.date || null,
-        projectId: project?.id || null,
+        projectId: (t.project && projectIds.get(t.project.toLowerCase())) || null,
         priority: t.priority === "extra" ? "extra" : "today",
         order: now + i,
       });
     })
   );
-  flash(`${tasks.length}件のタスクを追加しました`);
+  flash(
+    created
+      ? `${tasks.length}件のタスクとプロジェクト${created}件を追加しました`
+      : `${tasks.length}件のタスクを追加しました`
+  );
 }
 
 // ---------- 取り込みリンク ----------
@@ -1065,7 +1118,7 @@ function openImportModal() {
         meta.push(
           findProjectByName(t.project)
             ? escapeHtml(t.project)
-            : `${escapeHtml(t.project)}<span class="import-note">（未作成のためプロジェクト未設定で追加）</span>`
+            : `${escapeHtml(t.project)}<span class="import-note">（新しく作成）</span>`
         );
       }
       if (t.priority === "extra") meta.push("+α");
