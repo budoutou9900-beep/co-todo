@@ -181,6 +181,9 @@ Open-Meteo APIに直接リクエストする（サーバーを経由しない・
   （`empty` は `.empty-state::before`、`header` はロゴを隠して丸アイコン、`bg` は半透明の層を重ねた背景）。
   `done` だけは完了時に `popDoneImage()` が画像要素を出して1.5秒で消す。スロットを持たないテーマでは何も読まない。
   object URL を CSS の背景に使うため、CSP の `img-src` に `blob:` を許可している。
+- **着せ替えシート**（`openThemeSheet` / `renderThemeSheet`）: テーマを選ぶと `saveThemeId` で保存するだけで、
+  適用は他の画面と同じく `subscribeToAppearance` の通知に任せる（ローカル書き込みでも即座に通知が来る）。
+  開いている間にテーマ・画像が変わったら中身を描き直す（2回目以降はスライドインを再生しない）。
 - 起動時のちらつき防止: `applyTheme` が最後のテーマIDを `localStorage`（`buto-do-theme`）にも保存し、
   `index.html` の `<head>` で同期読み込みする `js/theme-boot.js` が描画前に `data-theme` と
   `<meta name="theme-color">` を当てる。CSPでインラインscriptを許可していないので外部ファイル。

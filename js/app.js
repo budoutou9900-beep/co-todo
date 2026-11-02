@@ -1,8 +1,8 @@
 import { watchAuth, signOutUser, renderGoogleSignInButton, signInDesktop } from "./auth.js";
-import { subscribeToTasks, subscribeToProjects, subscribeToAppearance, addTask, updateTask, addProject, updateProject, deleteTask, deleteProject } from "./db.js";
+import { subscribeToTasks, subscribeToProjects, subscribeToAppearance, saveThemeId, addTask, updateTask, addProject, updateProject, deleteTask, deleteProject } from "./db.js";
 import { completeTask } from "./tasks.js";
-import { THEMES, resolveThemeId, applyTheme, isRedesignTheme, themedColor } from "./themes.js";
-import { loadSlotImages } from "./theme-images.js";
+import { THEMES, resolveThemeId, applyTheme, availableThemes, isRedesignTheme, themedColor } from "./themes.js";
+import { loadSlotImages, saveSlotImage, deleteSlotImage } from "./theme-images.js";
 import { renderWeekView, renderMonthCalendar } from "./calendar.js";
 import { renderTodayTimeline, taskSortKey } from "./timeline.js";
 import { attachDragSort, detachDragSort, isDragActive } from "./drag.js";
@@ -124,6 +124,7 @@ watchAuth(async (user) => {
     if (state.unsubAppearance) state.unsubAppearance();
     // 前のユーザーの画像をログイン画面に残さない（uid が無いので空で読み直される＝解除）
     refreshThemeImages();
+    closeThemeSheet();
     projectsSnapshotReceived = false;
   }
 });
@@ -183,6 +184,137 @@ function popDoneImage() {
   img.addEventListener("animationend", () => img.remove());
 }
 
+// ---------- 着せ替えシート ----------
+// テーマ一覧（配色の見本つき、タップで即適用・保存）と、テーマに slots があるときだけ画像スロットの設定を出す。
+// 開いている間にテーマ・画像が変わったら（他端末での変更も含む）renderThemeSheet() で中身を描き直す。
+const SLOT_LABELS = { bg: "背景", empty: "空のとき", done: "完了したとき", header: "ヘッダー" };
+let themeSheetEl = null;
+
+function openThemeSheet() {
+  if (themeSheetEl) return;
+  themeSheetEl = document.createElement("div");
+  themeSheetEl.className = "confirm-overlay";
+  themeSheetEl.addEventListener("click", (e) => {
+    if (e.target === themeSheetEl) closeThemeSheet();
+  });
+  $("#app-root").appendChild(themeSheetEl);
+  renderThemeSheet();
+}
+
+function closeThemeSheet() {
+  themeSheetEl?.remove();
+  themeSheetEl = null;
+}
+
+function renderThemeSheet() {
+  if (!themeSheetEl) return;
+  const themeId = state.themeId;
+  const slots = THEMES[themeId]?.slots || [];
+  // 中身の描き直し（テーマ選択・画像変更）でスライドインを再生しないよう、2回目以降はアニメを止める
+  const staticClass = themeSheetEl.firstChild ? " theme-sheet-static" : "";
+  const cards = availableThemes(state.user?.uid)
+    .map(
+      (t) => `
+      <div class="theme-card${t.id === themeId ? " theme-card-active" : ""}" data-theme-pick="${t.id}">
+        <div class="theme-preview" data-preview="${t.id}"><span class="tp-card"></span><span class="tp-dot"></span></div>
+        <div class="theme-card-label">${escapeHtml(t.label)}</div>
+      </div>`
+    )
+    .join("");
+  const slotRows = slots
+    .map((slot) => {
+      const url = state.themeImages[slot];
+      return `
+      <div class="theme-slot-row">
+        <div class="theme-slot-thumb">${url ? `<img src="${url}" alt="">` : ""}</div>
+        <div class="theme-slot-label">${SLOT_LABELS[slot] || slot}</div>
+        <button class="theme-slot-btn" data-slot-pick="${slot}">${url ? "変更" : "画像を選ぶ"}</button>
+        ${url ? `<button class="theme-slot-btn theme-slot-del" data-slot-del="${slot}">削除</button>` : ""}
+        <input type="file" accept="image/*" hidden data-slot-input="${slot}">
+      </div>`;
+    })
+    .join("");
+  themeSheetEl.innerHTML = `
+    <div class="confirm-sheet theme-sheet${staticClass}">
+      <div class="confirm-title">着せ替え</div>
+      <div class="theme-grid">${cards}</div>
+      ${
+        slots.length
+          ? `<div class="theme-slot-section">
+              <div class="theme-slot-title">画像</div>
+              ${slotRows}
+              <div class="theme-slot-note">画像はこの端末にだけ保存されます</div>
+            </div>`
+          : ""
+      }
+      <button class="confirm-btn-cancel" id="theme-sheet-close">閉じる</button>
+    </div>`;
+  themeSheetEl.querySelector("#theme-sheet-close").addEventListener("click", closeThemeSheet);
+  themeSheetEl.querySelectorAll("[data-theme-pick]").forEach((el) =>
+    el.addEventListener("click", async () => {
+      const id = el.dataset.themePick;
+      if (id === state.themeId) return;
+      // 適用は Firestore の通知（subscribeToAppearance）に任せる。ローカルの書き込みでも即座に通知が来る
+      try {
+        await saveThemeId(id);
+      } catch (e) {
+        console.error("テーマの保存に失敗:", e);
+        flash("テーマを保存できませんでした");
+      }
+    })
+  );
+  themeSheetEl.querySelectorAll("[data-slot-pick]").forEach((btn) =>
+    // iOS Safari はユーザー操作の同期処理内で click() しないとファイル選択が開かない
+    btn.addEventListener("click", () => themeSheetEl.querySelector(`[data-slot-input="${btn.dataset.slotPick}"]`).click())
+  );
+  themeSheetEl.querySelectorAll("[data-slot-input]").forEach((input) =>
+    input.addEventListener("change", async () => {
+      const file = input.files?.[0];
+      if (!file || !state.user) return;
+      try {
+        await saveSlotImage(state.user.uid, state.themeId, input.dataset.slotInput, file);
+        await refreshThemeImages();
+        renderThemeSheet();
+      } catch (e) {
+        console.error("画像の保存に失敗:", e);
+        flash("画像を保存できませんでした");
+      }
+    })
+  );
+  themeSheetEl.querySelectorAll("[data-slot-del]").forEach((btn) =>
+    btn.addEventListener("click", () => confirmDeleteSlotImage(btn.dataset.slotDel))
+  );
+}
+
+function confirmDeleteSlotImage(slot) {
+  const overlay = document.createElement("div");
+  overlay.className = "confirm-overlay";
+  overlay.innerHTML = `
+    <div class="confirm-sheet">
+      <div class="confirm-title">「${SLOT_LABELS[slot] || slot}」の画像を削除しますか？</div>
+      <div class="confirm-body">この端末に保存した画像を削除します。</div>
+      <button class="confirm-btn-delete">削除する</button>
+      <button class="confirm-btn-cancel">キャンセル</button>
+    </div>`;
+  overlay.querySelector(".confirm-btn-delete").addEventListener("click", async () => {
+    overlay.remove();
+    if (!state.user) return;
+    try {
+      await deleteSlotImage(state.user.uid, state.themeId, slot);
+      await refreshThemeImages();
+      renderThemeSheet();
+    } catch (e) {
+      console.error("画像の削除に失敗:", e);
+      flash("画像を削除できませんでした");
+    }
+  });
+  overlay.querySelector(".confirm-btn-cancel").addEventListener("click", () => overlay.remove());
+  overlay.addEventListener("click", (e) => {
+    if (e.target === overlay) overlay.remove();
+  });
+  $("#app-root").appendChild(overlay);
+}
+
 function startSubscriptions() {
   state.unsubTasks = subscribeToTasks((tasks) => {
     state.tasks = tasks;
@@ -198,7 +330,7 @@ function startSubscriptions() {
   state.unsubAppearance = subscribeToAppearance((themeId) => {
     state.themeId = resolveThemeId(themeId, state.user?.uid);
     applyTheme(state.themeId);
-    refreshThemeImages();
+    refreshThemeImages().then(renderThemeSheet);
     // テーマによって描画するマークアップ・文言が変わるので描き直す
     requestRender();
   });
@@ -1292,6 +1424,7 @@ function findRepeatOptionIndex(repeat) {
 $("#open-sheet-btn").addEventListener("click", () => openSheet());
 $("#add-project-fab").addEventListener("click", () => openProjectModal());
 $("#bulk-add-btn").addEventListener("click", () => openBulkAddModal());
+$("#theme-btn").addEventListener("click", () => openThemeSheet());
 
 function defaultDraft() {
   return {

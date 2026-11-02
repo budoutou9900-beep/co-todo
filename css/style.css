@@ -1,7 +1,9 @@
 /* テーマ（着せ替え）の単位。色はすべてここの変数を経由させ、テーマ側はこのブロックを上書きする。
    透明度違いを大量に使うため、主要色は「R, G, B」の3値でも持ち rgba(var(--x-rgb), α) で参照する
    （値を1か所変えれば全透明度に効く）。--place-* はデータとしての色なのでテーマで変えない。 */
-:root {
+/* .theme-preview[data-preview] は着せ替えシートの配色見本（同じ変数を見本の要素にも当てる） */
+:root,
+.theme-preview[data-preview="default"] {
   --bg: #0f0f14;
   --bg-deep: #08080c;
   --surface: #16161f;
@@ -64,7 +66,8 @@
    値はデザイン刷新案（Buto-doのデザイン刷新案.zip の README「テーマ別トークン」）から取っている。 */
 
 /* 1a 墨: 無彩色のダーク */
-html[data-theme="sumi"] {
+html[data-theme="sumi"],
+.theme-preview[data-preview="sumi"] {
   --bg: #131211;
   --bg-deep: #131211;
   --surface: #1d1c1a;
@@ -86,7 +89,8 @@ html[data-theme="sumi"] {
 }
 
 /* 1b 紙: 生成りのライト */
-html[data-theme="kami"] {
+html[data-theme="kami"],
+.theme-preview[data-preview="kami"] {
   --bg: #f5f3ee;
   --bg-deep: #f5f3ee;
   --surface: #fffefb;
@@ -116,7 +120,8 @@ html[data-theme="kami"] {
 }
 
 /* 1c 葡萄: 紫みのダーク */
-html[data-theme="budou"] {
+html[data-theme="budou"],
+.theme-preview[data-preview="budou"] {
   --bg: #15131a;
   --bg-deep: #15131a;
   --surface: #1e1b25;
@@ -138,7 +143,8 @@ html[data-theme="budou"] {
 }
 
 /* 2a クリーム: キャラクターの体色・ほっぺ・輪郭線から取ったライト */
-html[data-theme="cream"] {
+html[data-theme="cream"],
+.theme-preview[data-preview="cream"] {
   --bg: #faf0ca;
   --bg-deep: #faf0ca;
   --surface: #fffbea;
@@ -830,3 +836,33 @@ html[data-theme] #app-root.has-theme-header .theme-header-icon { display: block;
   80% { opacity: 1; transform: translate(-50%, 0) scale(1); }
   100% { opacity: 0; transform: translate(-50%, 20px) scale(0.9); }
 }
+
+/* ==========================================================================
+   着せ替えシート（フェーズ4）。どのテーマでも同じ作りで、色はその時のテーマの変数を使う。
+   ========================================================================== */
+/* 着せ替えボタンを足した分ヘッダー右側が詰まり、狭い画面で「ログアウト」が2行に折れるため */
+.signout-btn { white-space: nowrap; }
+.theme-btn { width: 26px; height: 26px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+html[data-theme] .theme-btn { width: 36px; height: 36px; border-radius: 10px; --theme-btn-ink: var(--sub); }
+html[data-theme] .theme-btn:hover { background: rgba(127, 127, 127, 0.12); }
+.theme-sheet { max-height: 85vh; overflow-y: auto; }
+.theme-sheet-static { animation: none; }
+.theme-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 10px; margin: 14px 0 18px; }
+.theme-card { display: flex; flex-direction: column; align-items: center; gap: 7px; padding: 8px 6px 9px; border-radius: 14px; border: 1.5px solid transparent; cursor: pointer; }
+.theme-card-active { border-color: rgb(var(--accent-rgb)); background: rgba(var(--accent-rgb), 0.08); }
+.theme-card-label { font-size: 12px; color: var(--text); }
+/* 配色見本: 見本の要素自体に各テーマの変数が当たる（:root / html[data-theme] と同じブロック）。
+   --text 等の派生変数は html で解決済みの値が継承されるので、ここでは各テーマが直接持つ変数だけを使う */
+.theme-preview { position: relative; width: 64px; height: 44px; border-radius: 10px; background: var(--bg); border: 1px solid rgba(var(--line-rgb), 0.1); overflow: hidden; }
+.tp-card { position: absolute; left: 8px; right: 8px; top: 9px; height: 13px; border-radius: 4px; background: var(--surface); }
+.tp-card::after { content: ""; position: absolute; left: 6px; right: 14px; top: 5px; height: 3px; border-radius: 2px; background: rgb(var(--text-rgb)); opacity: 0.8; }
+.tp-dot { position: absolute; right: 8px; bottom: 6px; width: 13px; height: 13px; border-radius: 50%; background: var(--fab-from); }
+.theme-slot-section { border-top: 1px solid rgba(var(--line-rgb), 0.08); padding-top: 14px; margin-bottom: 16px; }
+.theme-slot-title { font-size: 12px; font-weight: 600; color: rgba(var(--text-rgb), 0.55); margin-bottom: 8px; }
+.theme-slot-row { display: flex; align-items: center; gap: 12px; min-height: 52px; }
+.theme-slot-thumb { width: 40px; height: 40px; border-radius: 10px; flex-shrink: 0; overflow: hidden; background: rgba(var(--line-rgb), 0.06); }
+.theme-slot-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.theme-slot-label { flex: 1; font-size: 13.5px; color: var(--text); }
+.theme-slot-btn { font-size: 12px; padding: 7px 11px; border-radius: 99px; border: 1px solid rgba(var(--line-rgb), 0.14); background: transparent; color: var(--text); cursor: pointer; }
+.theme-slot-del { color: var(--danger); }
+.theme-slot-note { font-size: 11px; color: rgba(var(--text-rgb), 0.45); margin-top: 8px; }
