@@ -875,3 +875,5 @@ html[data-theme] .week-task-row,
 html[data-theme] .subtask-row { padding-top: 7px; padding-bottom: 7px; }
 html[data-theme] .rd-label { max-width: 35%; }
 html[data-theme] .rd-label-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+/* 今週: default と同じく、タスクのカードだけ左にインデントして予定（左端まで）と区別する */
+html[data-theme] .week-group-card:not(.week-group-card-events) { margin-left: 14px; }
