@@ -162,6 +162,14 @@ Open-Meteo APIに直接リクエストする（サーバーを経由しない・
 - 選択は Firestore の `users/{uid}/settings/appearance`（`themeId`）が真実源。`app.js` が
   `subscribeToAppearance` で購読し、`resolveThemeId`（未知のID・対象外ユーザーは `default`）を
   通して `applyTheme` する。`allowedUids` を持つテーマは、そのUIDのユーザーにしか出さない。
+- 刷新案テーマは色だけでなく形（行の枠・チェック円・ナビの形・フォント・見出しの文言）も変える。
+  描画関数は `isRedesignTheme()` のとき `rd` 版（`renderTodayTimelineRd` / `renderWeekViewRd` /
+  `renderProjectCardRd` など）に分岐し、**default の描画コードは通さない**（既存ユーザーの見た目を変えないため）。
+  `rd` 版もクラス名・`data-*` 属性・DOMの入れ子は既存版と同じにしている（drag.js / swipe.js / クリック処理が依存）。
+  色は要素に `--pc`（`themedColor()` でテーマの背景に合わせて明度・彩度を補正したプロジェクト色）だけを渡し、
+  見た目は `css/style.css` 末尾の `html[data-theme] …` ブロックで決める。テーマ変更時は `requestRender()` で描き直す。
+- 刷新案テーマ用のフォント（Geist / Shippori Mincho / Zen Maru Gothic）は、テーマ適用時にだけ `<link>` を差し込んで読む
+  （default のユーザーには余計な読み込みをさせない）。
 - 起動時のちらつき防止: `applyTheme` が最後のテーマIDを `localStorage`（`buto-do-theme`）にも保存し、
   `index.html` の `<head>` で同期読み込みする `js/theme-boot.js` が描画前に `data-theme` と
   `<meta name="theme-color">` を当てる。CSPでインラインscriptを許可していないので外部ファイル。

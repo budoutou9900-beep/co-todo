@@ -1,4 +1,5 @@
 import { hexToRgb, escapeHtml } from "./utils.js";
+import { isRedesignTheme, themedColor } from "./themes.js";
 
 const NEUTRAL = "#5a5a72"; // プロジェクト未紐付けタスクの色（薄いグレー）
 
@@ -45,6 +46,45 @@ function renderTaskCard(t, projectMap) {
           <span class="drag-handle" aria-hidden="true">⋮⋮</span>
         </div>
       </div>`;
+}
+
+// 刷新案テーマ用のタスク行。色は --pc（テーマに合わせて補正したプロジェクト色）だけ渡し、
+// 見た目は css/style.css の html[data-theme] 側に任せる。クラス名・DOM構造は
+// drag.js / swipe.js / クリック処理が依存しているので既存の行と同じにしている。
+// pos: グループ（枠で囲む見た目）の先頭・末尾を表す " rd-first" / " rd-last"
+function renderTaskRowRd(t, projectMap, pos = "") {
+  const color = themedColor(colorOf(t, projectMap));
+  const project = t.projectId ? projectMap.get(t.projectId) : null;
+  const label = project ? `<span class="rd-label"><span class="rd-dot"></span>${escapeHtml(project.title)}</span>` : "";
+  const repeatChip = t.repeat && t.repeat.type !== "none" ? `<span class="task-repeat-icon">↻</span>` : "";
+  const priority = t.priority === "extra" ? "extra" : "today";
+  return `
+      <div class="task-row rd-row${pos}${t.done ? " rd-done" : ""}" data-task-id="${t.id}" data-sort-key="${taskSortKey(t)}" data-priority="${priority}">
+        <div class="task-card task-card-1line" style="--pc:${color}">
+          <div class="task-check">${t.done ? checkSvg() : ""}</div>
+          <div class="task-title-1line">${escapeHtml(t.title)}</div>
+          ${repeatChip}
+          ${label}
+          <span class="drag-handle" aria-hidden="true">⋮⋮</span>
+        </div>
+      </div>`;
+}
+
+function renderCalEventRowRd(ev, pos = "") {
+  const color = ev.color ? themedColor(ev.color) : "var(--cal)";
+  return `
+      <div class="task-row cal-event-row rd-row${pos}" data-sort-key="${calSortKey(ev)}" data-priority="today" style="cursor:default">
+        <div class="task-card task-card-1line" style="--pc:${color}">
+          <div class="rd-cal-bar"></div>
+          <div class="task-title-1line">${escapeHtml(ev.summary)}</div>
+          <span class="rd-label">${calEventTimeLabel(ev)}</span>
+        </div>
+      </div>`;
+}
+
+// 一続きの行に先頭・末尾の印を付ける（枠で囲むテーマで角丸・区切り線を出すため）
+function rowPos(i, n) {
+  return (i === 0 ? " rd-first" : "") + (i === n - 1 ? " rd-last" : "");
 }
 
 const CAL_COLOR_FALLBACK = "78,197,212"; // カレンダー色が取得できない場合のフォールバック（シアン）
@@ -97,6 +137,7 @@ export function repeatToLabel(repeat) {
 //   - 未完了タスク（order 昇順 = 入れた順 / 手動並び替え順）
 //   - 完了タスクは折りたたみ「完了済み」セクションにまとめて下部へ
 export function renderTodayTimeline(tasks, calEvents = [], projects = [], doneCollapsed = true) {
+  if (isRedesignTheme()) return renderTodayTimelineRd(tasks, calEvents, projects, doneCollapsed);
   const projectMap = new Map(projects.map((p) => [p.id, p]));
   const undone = tasks.filter((t) => !t.done);
   const todayUndone = undone.filter((t) => t.priority !== "extra");
@@ -142,6 +183,51 @@ export function renderTodayTimeline(tasks, calEvents = [], projects = [], doneCo
       parts.push(`<div class="done-section-list">${done
         .map((t) => renderTaskCard(t, projectMap))
         .join("")}</div>`);
+    }
+  }
+  return parts.join("");
+}
+
+// 刷新案テーマ版。並び順・セクション構成・ドラッグ用の属性は既存版と同じで、文言と行の見た目だけ違う。
+function renderTodayTimelineRd(tasks, calEvents, projects, doneCollapsed) {
+  const projectMap = new Map(projects.map((p) => [p.id, p]));
+  const undone = tasks.filter((t) => !t.done);
+  const todayUndone = undone.filter((t) => t.priority !== "extra");
+  const extraUndone = undone
+    .filter((t) => t.priority === "extra")
+    .sort((a, b) => taskSortKey(a) - taskSortKey(b));
+  const done = tasks.filter((t) => t.done).sort((a, b) => taskSortKey(a) - taskSortKey(b));
+  const merged = [
+    ...calEvents.map((ev) => ({ kind: "cal", key: calSortKey(ev), data: ev })),
+    ...todayUndone.map((t) => ({ kind: "task", key: taskSortKey(t), data: t })),
+  ].sort((a, b) => a.key - b.key);
+
+  const parts = merged.map((item, i) => {
+    const pos = rowPos(i, merged.length);
+    return item.kind === "cal" ? renderCalEventRowRd(item.data, pos) : renderTaskRowRd(item.data, projectMap, pos);
+  });
+
+  // 見出しの文言はテーマで違う（葡萄だけ「+α」）。両方出してCSSで片方を隠す
+  parts.push(
+    `<div class="extra-section-header"><span class="extra-section-title"><span class="rd-extra-long">余裕があれば</span><span class="rd-extra-short">+α</span></span></div>`
+  );
+  if (extraUndone.length) {
+    parts.push(...extraUndone.map((t, i) => renderTaskRowRd(t, projectMap, rowPos(i, extraUndone.length))));
+  } else {
+    parts.push(
+      '<div class="task-row extra-drop-zone" data-priority="extra" data-sort-key="Infinity"><div class="empty-state extra-empty">なし</div></div>'
+    );
+  }
+
+  if (done.length) {
+    parts.push(`
+      <div class="done-section-header" id="done-section-toggle">
+        <span class="done-section-title">完了済み</span>
+        <span class="done-section-count">${done.length}</span>
+        <span class="done-section-chevron${doneCollapsed ? "" : " open"}">›</span>
+      </div>`);
+    if (!doneCollapsed) {
+      parts.push(`<div class="done-section-list">${done.map((t) => renderTaskRowRd(t, projectMap)).join("")}</div>`);
     }
   }
   return parts.join("");

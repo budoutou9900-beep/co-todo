@@ -10,6 +10,7 @@ import {
   hexToRgb,
 } from "./utils.js";
 import { RAIN_THRESHOLD } from "./weather-sync.js";
+import { isRedesignTheme, themedColor } from "./themes.js";
 
 const NEUTRAL = "#5a5a72";
 const EVENT_COLOR_FALLBACK = "#6b7a99"; // カレンダー色が取得できない場合のフォールバック
@@ -120,7 +121,7 @@ export function renderMonthCalendar(tasks, eventsByDate = {}, projects = [], mon
       shown
         .map(
           (it) =>
-            `<div class="mc-chip" style="background:${it.color};${it.done ? "opacity:0.45;" : ""}">${escapeHtml(
+            `<div class="mc-chip" style="background:${isRedesignTheme() ? themedColor(it.color) : it.color};${it.done ? "opacity:0.45;" : ""}">${escapeHtml(
               it.label
             )}</div>`
         )
@@ -167,6 +168,7 @@ export function renderWeekView(tasks, weekStart, projects = [], eventsByDate = {
   const projectMap = new Map(projects.map((p) => [p.id, p]));
   const dayOrder = [0, 1, 2, 3, 4, 5, 6].map((i) => addDays(weekStart, i));
   const today = todayStr();
+  if (isRedesignTheme()) return renderWeekViewRd(tasks, dayOrder, projectMap, eventsByDate, weatherByDate);
   let total = 0;
   let html = "";
   for (const dateStr of dayOrder) {
@@ -222,6 +224,60 @@ export function renderWeekView(tasks, weekStart, projects = [], eventsByDate = {
           <div class="week-group-label" style="color:${labelColor}">${label}</div>
           ${umbrellaBadge}
           ${isToday ? '<div class="today-badge">TODAY</div>' : ""}
+        </div>
+        ${eventsCard}
+        ${tasksCard}
+      </div>`;
+  }
+  return { html, total, empty: total === 0 };
+}
+
+// 刷新案テーマ版の今週ビュー。対象の日・行の構成とクリック用の属性は既存版と同じで、
+// 日付見出しを「数字＋曜日」にし、行の色は --pc（テーマ補正済み）だけ渡してCSSに任せる。
+function renderWeekViewRd(tasks, dayOrder, projectMap, eventsByDate, weatherByDate) {
+  const today = todayStr();
+  let total = 0;
+  let html = "";
+  for (const dateStr of dayOrder) {
+    const dayTasks = tasks.filter((t) => t.date === dateStr && !t.done);
+    const dayEvents = eventsByDate[dateStr] || [];
+    if (dayTasks.length === 0 && dayEvents.length === 0) continue;
+    total += dayTasks.length;
+    const isToday = dateStr === today;
+    const forecast = weatherByDate[dateStr];
+    const umbrellaBadge =
+      forecast && forecast.precipProb >= RAIN_THRESHOLD
+        ? `<span class="umbrella-badge" title="降水確率${forecast.precipProb}%">☂</span>`
+        : "";
+    const eventRows = dayEvents
+      .map(
+        (ev) => `
+        <div class="week-task-row week-event-row" style="cursor:default;--pc:${ev.color ? themedColor(ev.color) : "var(--cal)"}">
+          <div class="rd-cal-bar"></div>
+          <div class="week-task-title">${escapeHtml(ev.summary)}</div>
+        </div>`
+      )
+      .join("");
+    const rows = dayTasks
+      .map((t) => {
+        const project = t.projectId ? projectMap.get(t.projectId) : null;
+        return `
+        <div class="week-task-row" data-task-id="${t.id}" style="--pc:${themedColor(colorForTask(t, projectMap))}">
+          <div class="week-task-dot"></div>
+          <div class="week-task-title">${escapeHtml(t.title)}</div>
+          ${project ? `<span class="week-task-proj">${escapeHtml(project.title)}</span>` : ""}
+        </div>`;
+      })
+      .join("");
+    const eventsCard = eventRows ? `<div class="week-group-card week-group-card-events">${eventRows}</div>` : "";
+    const tasksCard = rows ? `<div class="week-group-card">${rows}</div>` : "";
+    html += `
+      <div class="week-group">
+        <div class="week-group-label-row">
+          <span class="rd-daynum${isToday ? " rd-today" : ""}">${dayNum(dateStr)}</span>
+          <span class="rd-dow${isToday ? " rd-today" : ""}">${dowJp(dateStr)}</span>
+          ${umbrellaBadge}
+          ${isToday ? '<span class="today-badge">今日</span>' : ""}
         </div>
         ${eventsCard}
         ${tasksCard}

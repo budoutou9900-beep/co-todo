@@ -96,6 +96,13 @@ firebase deploy --only hosting
   透明度違いは `rgba(var(--text-rgb), 0.4)` のように `--*-rgb`（R, G, B の3値）で書く。JSのインライン
   styleも同様。SVGの `stroke="…"`/`fill="…"` 属性には `var()` が効かないので `style="stroke:var(--accent)"`
   と書くこと。プロジェクト色・場所色（`--place-*`）・カレンダー予定色など「データとしての色」は対象外。
+- **着せ替えの刷新案テーマは default と描画コードを分けている**: `isRedesignTheme()` で `rd` 版の描画関数に
+  分岐し、CSSも `html[data-theme] …` に閉じ込めている。default 側の描画・CSSを変えると既存ユーザーの見た目が
+  変わるので、テーマ用の変更は rd 側だけで行う。`rd` 版でもクラス名・`data-*` 属性・入れ子は既存版と揃えること
+  （drag.js / swipe.js が依存）。
+- **`--pc`（行ごとのプロジェクト色）を `html[data-theme]` のトークンに入れても効かない**: カスタムプロパティ内の
+  `var()` は宣言した要素（html）で解決されるため、`--chk-border: var(--pc)` は無効値になる。プロジェクト色を
+  使うトークンは定義せず、ルール側で `var(--chk-border, var(--pc))` のようにフォールバックで書く。
 - **`desktop/start.bat` は日本語を書かない（ASCII＋CRLF）**: UTF-8の日本語をcmdがCP932で読み、
   `if` ブロックが壊れて毎回 `npm install` が走っていた。
 

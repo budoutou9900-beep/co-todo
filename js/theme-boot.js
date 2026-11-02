@@ -9,6 +9,13 @@
   } catch (e) {}
   if (!id || id === "default") return;
   document.documentElement.setAttribute("data-theme", id);
+  // 刷新案テーマ用のフォント（themes.js の THEME_FONTS_URL と同じ）
+  var link = document.createElement("link");
+  link.id = "theme-fonts";
+  link.rel = "stylesheet";
+  link.href =
+    "https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600&family=Shippori+Mincho:wght@500;600&family=Zen+Maru+Gothic:wght@500;700&display=swap";
+  document.head.appendChild(link);
   var bg = getComputedStyle(document.documentElement).getPropertyValue("--bg").trim();
   var meta = document.querySelector('meta[name="theme-color"]');
   if (meta && bg) meta.setAttribute("content", bg);

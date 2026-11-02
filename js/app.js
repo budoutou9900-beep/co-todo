@@ -1,7 +1,7 @@
 import { watchAuth, signOutUser, renderGoogleSignInButton, signInDesktop } from "./auth.js";
 import { subscribeToTasks, subscribeToProjects, subscribeToAppearance, addTask, updateTask, addProject, updateProject, deleteTask, deleteProject } from "./db.js";
 import { completeTask } from "./tasks.js";
-import { resolveThemeId, applyTheme } from "./themes.js";
+import { resolveThemeId, applyTheme, isRedesignTheme, themedColor } from "./themes.js";
 import { renderWeekView, renderMonthCalendar } from "./calendar.js";
 import { renderTodayTimeline, taskSortKey } from "./timeline.js";
 import { attachDragSort, detachDragSort, isDragActive } from "./drag.js";
@@ -156,6 +156,8 @@ function startSubscriptions() {
   state.unsubAppearance = subscribeToAppearance((themeId) => {
     state.themeId = resolveThemeId(themeId, state.user?.uid);
     applyTheme(state.themeId);
+    // テーマによって描画するマークアップ・文言が変わるので描き直す
+    requestRender();
   });
 }
 
@@ -211,8 +213,9 @@ $$(".tab-item").forEach((el) => {
 });
 
 function updateTabBar() {
-  const active = "var(--accent)";
-  const idle = "rgba(var(--text-rgb),0.28)";
+  // --nav-active / --nav-idle は刷新案テーマだけが定義する（default は従来の色にフォールバック）
+  const active = "var(--nav-active, var(--accent))";
+  const idle = "var(--nav-idle, rgba(var(--text-rgb),0.28))";
   ["today", "week", "projects"].forEach((v) => {
     const isActive = state.view === v;
     $(`#tab-icon-${v}`).style.color = isActive ? active : idle;
@@ -278,17 +281,27 @@ function requestRender() {
   });
 }
 
+// 画面タイトルの日付。刷新案テーマでは曜日を小さく分けて「11月2日 月曜日」の形にする
+function headerDateHtml(dateStr) {
+  if (!isRedesignTheme()) return formatHeaderDate(dateStr);
+  const d = new Date(dateStr + "T00:00:00");
+  return `${d.getMonth() + 1}月${d.getDate()}日<span class="rd-title-dow">${"日月火水木金土"[d.getDay()]}曜日</span>`;
+}
+
 function renderTodayScreen() {
   const dayTasks = state.tasks.filter((t) => t.date === state.selectedDate);
   const doneN = dayTasks.filter((t) => t.done).length;
   // カレンダー予定は選択日のものだけ表示（取得済みの日付が一致するとき）
   const events = state.calendarConnected && state.calendarDate === state.selectedDate ? state.calendarEvents : [];
+  // 刷新案テーマでは絵文字をやめ、小さなドット＋文言のピルにする
+  const rd = isRedesignTheme();
+  const chipText = (emoji, text) => (rd ? `<span class="rd-chip-dot"></span>${text}` : `${emoji} ${text}`);
   const calChip = state.calendarConnected
-    ? `<div id="cal-toggle" class="cal-chip on">📅 カレンダー</div>`
-    : `<div id="cal-toggle" class="cal-chip">📅 連携</div>`;
+    ? `<div id="cal-toggle" class="cal-chip on">${chipText("📅", "カレンダー")}</div>`
+    : `<div id="cal-toggle" class="cal-chip">${rd ? chipText("", "カレンダー連携") : "📅 連携"}</div>`;
   const weatherChip = state.weatherConnected
-    ? `<div id="weather-toggle" class="cal-chip weather-chip on">☂ 天気</div>`
-    : `<div id="weather-toggle" class="cal-chip weather-chip">☂ 天気</div>`;
+    ? `<div id="weather-toggle" class="cal-chip weather-chip on">${chipText("☂", "天気")}</div>`
+    : `<div id="weather-toggle" class="cal-chip weather-chip">${chipText("☂", "天気")}</div>`;
   const forecast = state.weatherByDate[state.selectedDate];
   // ヘッダーの日付横に収まるコンパクトな天気表示（アイコン・気温・ラベル）。
   // 傘が必要かどうかの注意文だけは独立した帯でタイムライン上部に残す。
@@ -310,21 +323,26 @@ function renderTodayScreen() {
       <div class="screen-header">
         <div style="display:flex;justify-content:space-between;align-items:flex-start">
           <div>
-            <div class="eyebrow">TODAY</div>
-            <div class="title-lg">${formatHeaderDate(state.selectedDate)}</div>
+            <div class="eyebrow">${rd ? "今日" : "TODAY"}</div>
+            <div class="title-lg">${headerDateHtml(state.selectedDate)}</div>
           </div>
-          ${weatherHeader}
+          ${
+            // 刷新案テーマでは完了数を日付の右に出す（見出し行はピルだけで幅がいっぱいになるため）
+            rd
+              ? `<div class="rd-header-side">${weatherHeader}<div class="timeline-done">${doneN} / ${dayTasks.length} 完了</div></div>`
+              : weatherHeader
+          }
         </div>
       </div>
       <div class="timeline-label-row">
         <div class="timeline-label">タイムライン</div>
-        <div style="display:flex;align-items:center;gap:10px">
+        <div class="timeline-tools" style="display:flex;align-items:center;gap:10px">
           <div id="reorder-toggle" class="cal-chip reorder-chip${state.reorderMode ? " on" : ""}">${
-            state.reorderMode ? "完了" : "↕ 並び替え"
+            state.reorderMode ? "完了" : rd ? "並び替え" : "↕ 並び替え"
           }</div>
           ${calChip}
           ${weatherChip}
-          <div class="timeline-done">${doneN} / ${dayTasks.length} 完了</div>
+          ${rd ? "" : `<div class="timeline-done">${doneN} / ${dayTasks.length} 完了</div>`}
         </div>
       </div>
       <div class="task-list-scroll scroll">
@@ -360,7 +378,7 @@ function renderWeekScreen() {
     const events = state.weekCalEventsByDate[d] || [];
     bodyHtml = `
       <div class="week-detail-header">
-        <div class="week-detail-title">${formatHeaderDate(d)}</div>
+        <div class="week-detail-title">${headerDateHtml(d)}</div>
         <div class="week-detail-close" id="week-detail-close-btn">✕</div>
       </div>
       <div class="timeline-label-row">
@@ -377,7 +395,7 @@ function renderWeekScreen() {
   return `
     <div class="screen">
       <div class="screen-header" style="padding-bottom:12px">
-        <div class="eyebrow muted">THIS WEEK</div>
+        <div class="eyebrow muted">${isRedesignTheme() ? "今週" : "THIS WEEK"}</div>
         <div style="display:flex;justify-content:space-between;align-items:flex-end">
           <div class="title-md">${rangeLabel}</div>
           <div style="font-size:11.5px;color:rgba(var(--text-rgb),0.32)">${total}件</div>
@@ -399,6 +417,7 @@ function renderProjectCard(p) {
   const pct = subs.length ? Math.round((doneN / subs.length) * 100) : 0;
   const [r, g, b] = hexToRgb(p.color || "#9580ff");
   const dueWarn = p.dueDate && p.dueDate < todayStr();
+  if (isRedesignTheme()) return renderProjectCardRd(p, subs, doneN, pct, dueWarn);
   const subRows = subs
     .map((t) => {
       const checkStyle = t.done
@@ -464,6 +483,58 @@ function renderProjectCard(p) {
   </div>`;
 }
 
+// 刷新案テーマ版のプロジェクトカード。data-* 属性・クラス名（クリック/スワイプ処理が依存）は
+// 既存版と同じで、グラデーションや発光をやめ、色は --pc（テーマ補正済み）だけ渡してCSSに任せる。
+function renderProjectCardRd(p, subs, doneN, pct, dueWarn) {
+  const today = todayStr();
+  const when = (date) => {
+    if (!date) return "";
+    if (date === today) return "今日";
+    const d = new Date(date + "T00:00:00");
+    return `${d.getMonth() + 1}/${d.getDate()}`;
+  };
+  // 並び順は既存版と同じ（小タスクのドラッグ並び替えが隣接行の data-sort-key を使うため）
+  const subRows = subs
+    .map(
+      (t) => `
+      <div class="subtask-row${t.done ? " rd-done" : ""}" data-task-id="${t.id}" data-sort-key="${t.order ?? ""}">
+        <div class="subtask-check">${
+          t.done
+            ? '<svg width="9" height="7" viewBox="0 0 9 7" fill="none"><path d="M1 3.5l2.5 2.5L8 .5" style="stroke:var(--chk-mark)" stroke-width="1.4" stroke-linecap="round"/></svg>'
+            : ""
+        }</div>
+        <div class="subtask-text">${escapeHtml(t.title)}</div>
+        ${t.date ? `<span class="rd-sub-when">${when(t.date)}</span>` : ""}
+      </div>`
+    )
+    .join("");
+  return `
+  <div class="project-card" data-project-id="${p.id}" style="--pc:${themedColor(p.color || "#9580ff")}">
+    <div class="project-swipe-area">
+      <div class="project-header-row" data-toggle-project="${p.id}">
+        <div class="rd-card-name"><span class="rd-dot"></span><span class="project-name">${escapeHtml(p.title)}</span></div>
+        <div class="project-pct">${pct}%</div>
+      </div>
+      <div class="project-bar-track"><div class="project-bar-fill" style="width:${pct}%"></div></div>
+      <div class="project-footer-row">
+        <div class="project-footer-left">
+          <span>${doneN} / ${subs.length} 完了</span>
+          <span data-edit-project="${p.id}" class="rd-due${dueWarn ? " rd-warn" : ""}">締切 ${p.dueDate || "—"}</span>
+          <button class="project-color-btn" data-shuffle-color="${p.id}" aria-label="色を変える"><span class="project-color-swatch"></span>色</button>
+        </div>
+        <div class="project-expand-hint">${p.open ? "閉じる" : "開く"}</div>
+      </div>
+      ${
+        p.open
+          ? `<div class="project-subtasks">${subRows || '<div class="project-stat-label">小タスクなし</div>'}
+            <div class="add-subtask-btn" data-add-subtask="${p.id}">＋ タスクを追加</div>
+          </div>`
+          : ""
+      }
+    </div>
+  </div>`;
+}
+
 // 締切未設定を先頭に、それ以降は締切日の早い順に並べる比較関数。
 function byDueDate(a, b) {
   if (!a.dueDate && !b.dueDate) return 0;
@@ -487,7 +558,7 @@ function renderProjectsScreen() {
   return `
     <div class="screen">
       <div class="screen-header" style="padding-bottom:14px">
-        <div class="eyebrow muted">PROJECTS</div>
+        <div class="eyebrow muted">${isRedesignTheme() ? `${state.projects.length}件` : "PROJECTS"}</div>
         <div class="title-md">プロジェクト</div>
       </div>
       <div class="project-tab-toggle">

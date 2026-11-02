@@ -488,4 +488,314 @@ body.dragging-task .task-row[data-task-id], body.dragging-task .subtask-row[data
 .app-header { flex-shrink: 0; padding: max(14px, env(safe-area-inset-top)) 16px 6px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .app-brand { display: flex; align-items: center; gap: 11px; }
 .app-logo { height: 52px; width: auto; display: block; }
+/* 刷新案テーマのときだけ表示する文字ロゴ（default では出さない） */
+.app-wordmark { display: none; }
 .signout-btn { font-size: 10.5px; color: rgba(var(--text-rgb), 0.35); cursor: pointer; padding: 4px 8px; }
+
+/* ==========================================================================
+   刷新案テーマの見た目（フェーズ2.5）
+   html[data-theme] 配下だけに効く。default のユーザーには一切適用されない。
+   色以外（行の形・枠・フォント・ナビの形など）もテーマで変えるため、JS側は
+   isRedesignTheme() のとき rd- 系のマークアップを出し、色は --pc（テーマ補正済みの
+   プロジェクト色）だけを要素に渡す。値の出典はデザイン刷新案 README の「テーマ別トークン」。
+   ========================================================================== */
+
+/* ---- テーマごとの構造トークン ----
+   --sub / --mute / --faint / --ink2   補助文字・弱い文字・さらに弱い文字・「余裕があれば」の文字
+   --accent-label / --accent-link / --sparkle   見出しラベル・リンク文字・まとめて追加アイコン
+   --font-brand / --brand-weight / --font-title / --title-weight / --font-card / --card-weight
+   --label-inset / --list-px                    見出しの左右余白 / リストの左右余白
+   --group-*                                    行を囲む枠（タイムライン）。--group2-border は余裕・今週用
+   --row-line                                   行の区切り線
+   --chk-border / --chk-border2 / --chk-fill / --chk-mark   チェック円（未完了の枠・余裕枠・完了の塗り・✓）
+   --label-ink                                  行右端のプロジェクト名の色（未定義ならプロジェクト色）
+   ※ --pc（行ごとのプロジェクト色）を使うトークンは html では解決できないので定義せず、
+     ルール側の var(--x, var(--pc)) のフォールバックで表す（--chk-* / --label-ink / --pct-ink）
+   --chip-*                                     カレンダー等のピル（ON時）
+   --prog-*                                     「N / M 完了」
+   --seg-*                                      短期/長期の切り替え
+   --card-*, --pct-*, --bar-*                   プロジェクトカード・進捗%・進捗バー
+   --fab-border / --fab-radius / --fab2-*       ＋ボタンの枠・形 / 新規プロジェクトボタン
+   --nav-*                                      ボトムナビ
+   --handle / --input-* / --btn-radius / --sheet-border   ボトムシート */
+
+html[data-theme="sumi"] {
+  --sub: #8a8782; --mute: #6b6863; --faint: #4d4a46; --ink2: #cfcdc8;
+  --accent-label: #8a8782; --accent-link: #ecebe8; --sparkle: #8a8782;
+  --font-brand: 'Geist', sans-serif; --brand-weight: 500;
+  --font-title: 'Geist', 'Noto Sans JP', sans-serif; --title-weight: 400;
+  --font-card: inherit; --card-weight: 500;
+  --label-inset: 24px; --list-px: 24px;
+  --row-line: rgba(255, 255, 255, 0.07);
+  --chk-border: #4d4a46; --chk-border2: #4d4a46; --chk-fill: #ecebe8; --chk-mark: #131211;
+  --label-ink: var(--sub);
+  --chip-on-ink: #ecebe8; --chip-on-bg: transparent; --chip-on-border: rgba(255, 255, 255, 0.12); --chip-line: rgba(255, 255, 255, 0.07);
+  --prog-bg: transparent; --prog-ink: #8a8782; --prog-pad: 0;
+  --seg-bg: #1d1c1a; --seg-active-bg: #2a2826; --seg-active-ink: #ecebe8; --seg-active-border: transparent;
+  --pct-size: 20px; --pct-weight: 300; --pct-ink: #ecebe8;
+  --bar-h: 2px; --bar-track: rgba(255, 255, 255, 0.08); --sub-line: 1px solid rgba(255, 255, 255, 0.07);
+  --fab-border: none; --fab-radius: 50%;
+  --fab2-bg: #2a2826; --fab2-ink: #ecebe8; --fab2-border: none;
+  --nav-bg: #131211; --nav-line: rgba(255, 255, 255, 0.07); --nav-active: #ecebe8; --nav-idle: #5c5954;
+  --handle: #3a3835; --input-bg: #131211; --input-border: 1px solid #2e2c29; --btn-radius: 14px; --sheet-border: none;
+}
+html[data-theme="kami"] {
+  --sub: #7c776e; --mute: #7c776e; --faint: #a8a296; --ink2: #1d1c1a;
+  --accent-label: #7c776e; --accent-link: #4a3f8a; --sparkle: #4a3f8a;
+  --font-brand: 'Geist', sans-serif; --brand-weight: 600;
+  --font-title: 'Shippori Mincho', serif; --title-weight: 600;
+  --font-card: inherit; --card-weight: 500;
+  --label-inset: 28px; --list-px: 16px;
+  --group-bg: #fffefb; --group-border: 1px solid #e6e2d9; --group2-border: 1px solid #e6e2d9; --group-radius: 14px; --group-px: 16px;
+  --row-line: #efece5;
+  --chk-border: #c4beb2; --chk-border2: #c4beb2; --chk-fill: #1d1c1a; --chk-mark: #fffefb;
+  --chip-on-ink: #2f7889; --chip-on-bg: #eef5f6; --chip-on-border: #c9dfe3; --chip-line: #e6e2d9;
+  --prog-bg: transparent; --prog-ink: #7c776e; --prog-pad: 0;
+  --seg-bg: #ebe8e1; --seg-active-bg: #fffefb; --seg-active-ink: #1d1c1a; --seg-active-border: transparent;
+  --card-bg: #fffefb; --card-border: 1px solid #e6e2d9; --card-radius: 14px; --card-pad: 16px 16px 14px;
+  --pct-size: 20px; --pct-weight: 500;
+  --bar-h: 3px; --bar-track: #efece5; --sub-line: 1px solid #efece5;
+  --fab-border: none; --fab-radius: 50%;
+  --fab2-bg: #fffefb; --fab2-ink: #1d1c1a; --fab2-border: 1px solid #e6e2d9;
+  --nav-bg: #fffefb; --nav-line: #e6e2d9; --nav-active: #1d1c1a; --nav-idle: #a8a296;
+  --handle: #e0dbd0; --input-bg: #f5f3ee; --input-border: 1px solid #e6e2d9; --btn-radius: 14px; --sheet-border: none;
+}
+html[data-theme="budou"] {
+  --sub: #8e8a99; --mute: #6c6878; --faint: #4d4958; --ink2: #cfcbd8;
+  --accent-label: #a59ae8; --accent-link: #a59ae8; --sparkle: #a59ae8;
+  --font-brand: 'Geist', sans-serif; --brand-weight: 600;
+  --font-title: 'Noto Sans JP', sans-serif; --title-weight: 600;
+  --font-card: inherit; --card-weight: 500;
+  --label-inset: 22px; --list-px: 16px;
+  --chk-mark: #15131a; /* 枠・塗りはプロジェクト色（--chk-border 等を定義しない＝ルール側で --pc にフォールバック） */
+  --label-ink: var(--sub);
+  --chip-on-ink: #79c8d4; --chip-on-bg: #1d2a2e; --chip-on-border: transparent; --chip-line: #2a2633;
+  --prog-bg: #221f2a; --prog-ink: #cfcbd8; --prog-pad: 4px 10px;
+  --seg-bg: transparent; --seg-active-bg: #efedf3; --seg-active-ink: #15131a; --seg-active-border: transparent;
+  --card-bg: #1e1b25; --card-border: none; --card-radius: 16px; --card-pad: 16px;
+  --pct-size: 13px; --pct-weight: 500; --pct-ink: #cfcbd8;
+  --bar-h: 4px; --bar-track: #2a2633; --sub-line: 1px solid #2a2633;
+  --fab-border: none; --fab-radius: 17px;
+  --fab2-bg: #2a2633; --fab2-ink: #efedf3; --fab2-border: none;
+  --nav-bg: #1e1b25; --nav-line: transparent; --nav-active: #efedf3; --nav-idle: #6c6878;
+  --handle: #3a3545; --input-bg: #15131a; --input-border: 1px solid #2a2633; --btn-radius: 14px; --sheet-border: none;
+}
+html[data-theme="cream"] {
+  --sub: #8a7d58; --mute: #8a7d58; --faint: #b3a67e; --ink2: #2a2420;
+  --accent-label: #b9506a; --accent-link: #b9506a; --sparkle: #2a2420;
+  --font-brand: 'Zen Maru Gothic', sans-serif; --brand-weight: 700;
+  --font-title: 'Zen Maru Gothic', sans-serif; --title-weight: 700;
+  --font-card: 'Zen Maru Gothic', sans-serif; --card-weight: 700;
+  --label-inset: 28px; --list-px: 16px;
+  --group-bg: #fffbea; --group-border: 1.5px solid #2a2420; --group2-border: 1px solid #e8dbab; --group-radius: 16px; --group-px: 16px;
+  --row-line: #f3e9c9;
+  --chk-border: #2a2420; --chk-border2: #b3a67e; --chk-fill: #2a2420; --chk-mark: #fffbea;
+  --chip-on-ink: #2f7889; --chip-on-bg: #fffbea; --chip-on-border: #c9dcd4; --chip-line: #e8dbab;
+  --prog-bg: #fdc1ca; --prog-ink: #2a2420; --prog-pad: 4px 10px;
+  --seg-bg: #f1e4b4; --seg-active-bg: #fffbea; --seg-active-ink: #2a2420; --seg-active-border: #2a2420;
+  --card-bg: #fffbea; --card-border: 1px solid #e8dbab; --card-radius: 16px; --card-pad: 16px 16px 14px;
+  --pct-size: 20px; --pct-weight: 500;
+  --bar-h: 6px; --bar-track: #f3e9c9; --sub-line: 1px solid #f3e9c9;
+  --fab-border: 1.5px solid #2a2420; --fab-radius: 50%;
+  --fab2-bg: #fffbea; --fab2-ink: #2a2420; --fab2-border: 1.5px solid #2a2420;
+  --nav-bg: #fffbea; --nav-line: #e8dbab; --nav-active: #2a2420; --nav-idle: #ab9f7a;
+  --handle: #e8dbab; --input-bg: #faf0ca; --input-border: 1.5px solid #2a2420; --btn-radius: 99px; --sheet-border: 1.5px solid #2a2420;
+}
+
+/* ---- ヘッダー: ロゴは顔だけに切り抜き、文字ロゴを横に ---- */
+html[data-theme] .app-header { padding: max(14px, env(safe-area-inset-top)) 20px 4px; }
+html[data-theme] .app-brand { gap: 9px; }
+html[data-theme] .app-logo { height: 34px; width: 30px; object-fit: cover; object-position: left center; }
+html[data-theme] .app-wordmark { display: inline; font-family: var(--font-brand); font-size: 17px; font-weight: var(--brand-weight); letter-spacing: -0.3px; color: var(--text); }
+html[data-theme] .bulk-add-btn { width: 36px; height: 36px; border-radius: 10px; --accent: var(--sparkle); }
+html[data-theme] .bulk-add-btn:hover { background: rgba(127, 127, 127, 0.12); }
+html[data-theme] .signout-btn { font-size: 11px; color: var(--mute); }
+
+/* ---- 画面タイトル: 英字大文字のラベルをやめ、日本語の小見出し＋大きな日付 ---- */
+html[data-theme] .screen-header { padding: 22px 24px 16px; }
+html[data-theme] .eyebrow,
+html[data-theme] .eyebrow.muted { font-size: 12px; font-weight: 500; letter-spacing: 0; color: var(--accent-label); margin-bottom: 3px; }
+html[data-theme] .title-lg,
+html[data-theme] .title-md,
+html[data-theme] .week-detail-title { font-family: var(--font-title); font-weight: var(--title-weight); letter-spacing: -0.6px; line-height: 1.15; }
+html[data-theme] .title-lg { font-size: 32px; }
+html[data-theme] .title-md { font-size: 30px; }
+html[data-theme] .rd-title-dow { font-size: 15px; color: var(--sub); margin-left: 9px; letter-spacing: 0; }
+
+/* ---- 今日: 見出し行とピル ---- */
+html[data-theme] .timeline-label-row { padding: 0 var(--label-inset) 8px; }
+html[data-theme] .timeline-label { font-size: 12px; font-weight: 500; letter-spacing: 0; text-transform: none; color: var(--mute); }
+html[data-theme] .cal-chip { display: flex; align-items: center; gap: 6px; font-size: 11.5px; padding: 4px 10px; background: transparent; border: 1px solid var(--chip-line); color: var(--mute); transition: all 0.2s; }
+html[data-theme] .cal-chip.on { background: var(--chip-on-bg); border-color: var(--chip-on-border); color: var(--chip-on-ink); }
+html[data-theme] .rd-chip-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--faint); flex-shrink: 0; }
+html[data-theme] .cal-chip.on .rd-chip-dot { background: currentColor; }
+html[data-theme] .timeline-done { font-family: 'Geist', sans-serif; font-size: 12.5px; font-weight: 500; font-variant-numeric: tabular-nums; color: var(--prog-ink); background: var(--prog-bg); padding: var(--prog-pad); border-radius: 99px; }
+html[data-theme] .weather-header-temp { font-family: 'Geist', sans-serif; }
+
+/* ---- タスク行（共通の骨格） ---- */
+html[data-theme] .task-list-pad { padding: 0 var(--list-px) 150px; }
+html[data-theme] .rd-row { margin-bottom: 0; }
+/* 背景を塗っておくのは、スワイプ時に下の削除ボタンが透けないようにするため */
+html[data-theme] .rd-row .task-card { display: flex; align-items: center; gap: 13px; min-height: 50px; padding: 0; border-radius: 0; background: var(--bg); transition: none; }
+html[data-theme] .rd-row .task-check { width: 20px; height: 20px; box-sizing: border-box; border: 1.5px solid var(--chk-border, var(--pc)); background: transparent; transition: background 0.2s; --on-fill: var(--chk-mark); }
+html[data-theme] .rd-row[data-priority="extra"] .task-check { border-color: var(--chk-border2, var(--pc)); }
+html[data-theme] .rd-row.rd-done .task-check { border: none; background: var(--chk-fill, var(--pc)); }
+html[data-theme] .rd-row .task-check svg { width: 11px; height: 9px; }
+html[data-theme] .rd-row .task-title-1line { font-size: 14.5px; font-weight: 400; line-height: 1.4; color: var(--text); display: block; white-space: nowrap; text-overflow: ellipsis; -webkit-line-clamp: unset; }
+html[data-theme] .rd-row[data-priority="extra"] .task-title-1line { color: var(--ink2); }
+html[data-theme] .rd-label { display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--label-ink, var(--pc)); white-space: nowrap; flex-shrink: 0; max-width: 40%; overflow: hidden; text-overflow: ellipsis; font-family: 'Geist', 'Noto Sans JP', sans-serif; }
+html[data-theme] .rd-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--pc); flex-shrink: 0; }
+html[data-theme="kami"] .rd-dot { width: 7px; height: 7px; border-radius: 2px; }
+html[data-theme="cream"] .rd-dot { width: 7px; height: 7px; }
+html[data-theme="budou"] .rd-label .rd-dot { display: none; }
+html[data-theme] .cal-event-row .rd-label { color: var(--sub); }
+html[data-theme] .rd-cal-bar { width: 3px; height: 18px; border-radius: 2px; background: var(--pc); flex-shrink: 0; margin: 0 8.5px; }
+html[data-theme] .task-repeat-icon { color: var(--faint); }
+html[data-theme] .reorder-mode .drag-handle { color: var(--faint); }
+
+/* 墨: 枠なし。全行の下に罫線 */
+html[data-theme="sumi"] .rd-row .task-card { border-bottom: 1px solid var(--row-line); }
+/* 紙・クリーム: 一続きの行を1つの枠で囲み、行の間だけ区切り線（rd-first / rd-last はJSが付ける） */
+html[data-theme="kami"] .rd-row .task-card,
+html[data-theme="cream"] .rd-row .task-card { background: var(--group-bg); padding: 0 var(--group-px); border-left: var(--group-border); border-right: var(--group-border); border-top: 1px solid var(--row-line); }
+html[data-theme="kami"] .rd-row.rd-first .task-card,
+html[data-theme="cream"] .rd-row.rd-first .task-card { border-top: var(--group-border); border-top-left-radius: var(--group-radius); border-top-right-radius: var(--group-radius); }
+html[data-theme="kami"] .rd-row.rd-last .task-card,
+html[data-theme="cream"] .rd-row.rd-last .task-card { border-bottom: var(--group-border); border-bottom-left-radius: var(--group-radius); border-bottom-right-radius: var(--group-radius); }
+html[data-theme="cream"] .rd-row[data-priority="extra"] .task-card { border-left: var(--group2-border); border-right: var(--group2-border); }
+html[data-theme="cream"] .rd-row[data-priority="extra"].rd-first .task-card { border-top: var(--group2-border); }
+html[data-theme="cream"] .rd-row[data-priority="extra"].rd-last .task-card { border-bottom: var(--group2-border); }
+/* 葡萄: 行ごとのカード。余裕枠は線だけのカード */
+html[data-theme="budou"] .rd-row { margin-bottom: 6px; }
+html[data-theme="budou"] .rd-row .task-card { background: #1e1b25; border-radius: 12px; padding: 0 14px; }
+html[data-theme="budou"] .rd-row[data-priority="extra"] .task-card { background: var(--bg); border: 1px solid #25212d; }
+html[data-theme="budou"] .rd-row .task-check { border-width: 1.6px; }
+
+/* 余裕があれば・完了済み */
+html[data-theme] .extra-section-header { margin: 22px 0 8px; padding: 0 calc(var(--label-inset) - var(--list-px)); }
+html[data-theme] .extra-section-title { font-size: 12px; font-weight: 500; letter-spacing: 0; color: var(--mute); }
+html[data-theme] .rd-extra-short { display: none; }
+html[data-theme="budou"] .rd-extra-long { display: none; }
+html[data-theme="budou"] .rd-extra-short { display: inline; }
+html[data-theme] .extra-empty { padding: 12px 4px; color: var(--mute); text-align: left; }
+html[data-theme] .done-section-header { margin: 18px 0 8px; padding: 0 calc(var(--label-inset) - var(--list-px)); gap: 8px; }
+html[data-theme] .done-section-title { font-size: 12px; font-weight: 500; letter-spacing: 0; text-transform: none; color: var(--mute); }
+html[data-theme] .done-section-count { font-family: 'Geist', sans-serif; font-weight: 500; font-size: 12px; color: var(--sub); background: none; padding: 0; }
+html[data-theme] .done-section-chevron { margin-left: 0; font-size: 14px; color: var(--sub); }
+html[data-theme] .done-section-chevron.open { transform: rotate(90deg); }
+html[data-theme] .done-section-list .rd-row .task-card { min-height: 44px; background: var(--bg); border: none; border-radius: 0; padding: 0 4px; }
+html[data-theme] .done-section-list .rd-row { margin-bottom: 0; }
+html[data-theme] .done-section-list .rd-row .task-check { width: 18px; height: 18px; }
+html[data-theme] .done-section-list .rd-row .task-title-1line { font-size: 13.5px; color: var(--mute); text-decoration: line-through; }
+html[data-theme] .empty-state { color: var(--mute); }
+
+/* ---- 今週 ---- */
+html[data-theme] .week-group { margin-bottom: 0; }
+html[data-theme] .week-group-label-row { align-items: baseline; gap: 8px; padding: 16px calc(var(--label-inset) - var(--list-px)) 8px; margin: 0; }
+html[data-theme] .rd-daynum { font-family: 'Geist', sans-serif; font-size: 15px; font-weight: 600; color: var(--text); }
+html[data-theme] .rd-dow { font-size: 12px; color: var(--text); }
+html[data-theme] .today-badge { background: none; padding: 0; margin-left: 2px; font-size: 11px; font-weight: 400; color: var(--accent-label); }
+html[data-theme] .week-group-card { margin: 0; background: var(--group-bg, transparent); border: var(--group2-border, none); border-radius: var(--group-radius, 0); }
+html[data-theme] .week-group-card-events { margin-bottom: 6px; }
+html[data-theme] .week-task-row { min-height: 46px; padding: 0 var(--group-px, 0); gap: 13px; border-bottom: 1px solid var(--row-line); background: none; }
+html[data-theme] .week-task-row:last-child { border-bottom: none; }
+html[data-theme="sumi"] .week-task-row:last-child { border-bottom: 1px solid var(--row-line); }
+html[data-theme="budou"] .week-group-card { display: flex; flex-direction: column; gap: 6px; }
+html[data-theme="budou"] .week-task-row { border: 1px solid #25212d; border-radius: 12px; padding: 0 14px; }
+html[data-theme="budou"] .week-task-row:last-child { border-bottom: 1px solid #25212d; }
+html[data-theme] .week-task-dot { width: 6px; height: 6px; background: var(--pc); margin: 0 6px; }
+html[data-theme="kami"] .week-task-dot { width: 7px; height: 7px; border-radius: 2px; }
+html[data-theme="cream"] .week-task-dot { width: 7px; height: 7px; }
+html[data-theme] .week-task-title { font-size: 14px; color: var(--ink2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+html[data-theme] .week-task-proj { font-size: 11px; color: var(--label-ink, var(--pc)); }
+html[data-theme] .week-event-row .week-task-title { color: var(--text); }
+html[data-theme] .week-detail-header { padding: 16px var(--label-inset) 6px; }
+html[data-theme] .week-detail-title { font-size: 22px; }
+html[data-theme] .week-detail-close { background: var(--surface3); color: var(--sub); }
+/* 月カレンダー: 発光をやめる */
+html[data-theme] .mc-wrap { border: var(--group2-border, 1px solid var(--row-line)); }
+html[data-theme] .mc-num.mc-today,
+html[data-theme] .week-strip-num.today { box-shadow: none; color: var(--on-fill); }
+html[data-theme] .mc-chip { color: var(--on-fill); }
+
+/* ---- プロジェクト ---- */
+html[data-theme] .project-tab-toggle { margin: 0 var(--label-inset) 16px; gap: 0; background: var(--seg-bg); border-radius: 11px; padding: 3px; }
+html[data-theme] .project-tab-opt { padding: 8px; border-radius: 9px; background: transparent; border: 1.5px solid transparent; font-size: 13px; font-weight: 400; color: var(--sub); transition: all 0.2s; }
+html[data-theme] .project-tab-opt-active { background: var(--seg-active-bg); border-color: var(--seg-active-border); color: var(--seg-active-ink); font-weight: 600; }
+html[data-theme] .project-group-count { font-family: 'Geist', sans-serif; background: none; color: inherit; opacity: 0.7; padding: 0; font-weight: inherit; }
+html[data-theme] .project-card { background: var(--card-bg); border: var(--card-border); border-radius: var(--card-radius); padding: var(--card-pad); margin-bottom: 10px; }
+html[data-theme="sumi"] .project-card { background: var(--bg); border: none; border-bottom: 1px solid var(--row-line); border-radius: 0; padding: 16px 0 18px; margin-bottom: 0; }
+html[data-theme="budou"] .project-card { margin-bottom: 8px; }
+html[data-theme] .project-swipe-area { background: inherit; }
+html[data-theme] .project-header-row { align-items: baseline; gap: 12px; }
+html[data-theme] .rd-card-name { display: flex; align-items: center; gap: 9px; min-width: 0; }
+html[data-theme] .rd-card-name .rd-dot { width: 7px; height: 7px; border-radius: 50%; display: block; }
+html[data-theme] .project-name { font-family: var(--font-card); font-size: 15px; font-weight: var(--card-weight); margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+html[data-theme] .project-pct { font-family: 'Geist', sans-serif; font-size: var(--pct-size); font-weight: var(--pct-weight); color: var(--pct-ink, var(--pc)); font-variant-numeric: tabular-nums; white-space: nowrap; }
+html[data-theme] .project-bar-track { height: var(--bar-h); background: var(--bar-track); margin: 12px 0 10px; border-radius: 3px; }
+html[data-theme] .project-bar-fill { background: var(--pc); border-radius: 3px; transition: width 0.4s cubic-bezier(.2, .8, .2, 1); }
+html[data-theme] .project-footer-row { font-family: 'Geist', 'Noto Sans JP', sans-serif; font-size: 11.5px; color: var(--sub); }
+html[data-theme] .project-footer-left { gap: 12px; align-items: center; }
+html[data-theme] .rd-due { cursor: pointer; }
+html[data-theme] .rd-due.rd-warn { color: var(--warn); }
+html[data-theme] .project-color-btn { flex-direction: row; gap: 5px; margin: -6px -8px; padding: 6px 8px; }
+html[data-theme] .project-color-swatch { width: 8px; height: 8px; margin: 0; background: var(--pc); }
+html[data-theme] .project-expand-hint { font-size: 11.5px; font-weight: 400; color: var(--sub); }
+html[data-theme] .project-subtasks { margin-top: 14px; padding-top: 6px; border-top: var(--sub-line); gap: 0; }
+html[data-theme] .subtask-row { min-height: 40px; gap: 11px; }
+html[data-theme] .subtask-check { width: 17px; height: 17px; box-sizing: border-box; border: 1.5px solid var(--chk-border, var(--pc)); }
+html[data-theme] .subtask-row.rd-done .subtask-check { border: none; background: var(--chk-fill, var(--pc)); }
+html[data-theme] .subtask-text { flex: 1; font-size: 13.5px; color: var(--text); }
+html[data-theme] .subtask-row.rd-done .subtask-text { color: var(--mute); text-decoration: line-through; }
+html[data-theme] .rd-sub-when { font-size: 11px; color: var(--sub); font-family: 'Geist', 'Noto Sans JP', sans-serif; }
+html[data-theme] .add-subtask-btn { margin: 0; padding: 10px 0 2px; border: none; border-radius: 0; text-align: left; font-size: 12.5px; color: var(--accent-link); background: none; }
+html[data-theme] .project-stat-label { color: var(--sub); }
+
+/* ---- ボトムナビ: 墨・紙・クリームは画面下に固定したバー、葡萄は浮いたピル ---- */
+html[data-theme] .tab-bar { background: var(--nav-bg); -webkit-backdrop-filter: none; backdrop-filter: none; border: none; border-top: 1px solid var(--nav-line); border-radius: 0; box-shadow: none; margin: 0; padding: 10px 4px max(30px, calc(env(safe-area-inset-bottom) + 8px)); }
+html[data-theme] .tab-bar-fade { display: none; }
+html[data-theme] .tab-item { gap: 4px; transition: color 0.2s; }
+html[data-theme] .tab-label { font-size: 10px; }
+html[data-theme="budou"] .tab-bar { border: 1px solid #2a2633; border-radius: 22px; margin: 0 14px max(22px, calc(env(safe-area-inset-bottom) + 4px)); padding: 10px 4px; }
+html[data-theme="budou"] .tab-bar-fade { display: block; top: -60px; height: 60px; }
+
+/* ---- ＋ボタン: グラデーション・発光・浮遊アニメをやめる ---- */
+html[data-theme] .add-fab { width: 52px; height: 52px; right: 20px; top: -72px; border-radius: var(--fab-radius); border: var(--fab-border); box-sizing: border-box; animation: none; transition: transform 0.15s; }
+html[data-theme] .add-fab:active { transform: scale(0.94); }
+/* 新規プロジェクトボタンは別配色。変数を要素上で差し替えてSVGの stroke:var(--fab-ink) にも効かせる */
+html[data-theme] .add-project-fab { right: 84px; --fab-from: var(--fab2-bg); --fab-to: var(--fab2-bg); --fab-ink: var(--fab2-ink); --fab-border: var(--fab2-border); }
+html[data-theme="budou"] .add-fab { right: 22px; top: -80px; }
+html[data-theme="budou"] .add-project-fab { right: 86px; }
+
+/* ---- ボトムシート・確認シート ---- */
+html[data-theme] .sheet-backdrop { background: rgba(0, 0, 0, 0.38); }
+html[data-theme] .sheet { border-radius: 24px 24px 0 0; border-top: var(--sheet-border); box-shadow: none; }
+html[data-theme] .sheet-handle { width: 36px; background: var(--handle); }
+html[data-theme] .sheet-title,
+html[data-theme] .confirm-title { font-family: var(--font-title); font-weight: var(--title-weight); font-size: 18px; }
+html[data-theme] .sheet-cancel { color: var(--sub); }
+html[data-theme] .field-title,
+html[data-theme] .field-box,
+html[data-theme] .field-tappable,
+html[data-theme] .add-project-input,
+html[data-theme] .bulk-add-example,
+html[data-theme] .import-list { background: var(--input-bg); border: var(--input-border); border-radius: 12px; }
+html[data-theme] .field-label,
+html[data-theme] .field-box-label { font-size: 11px; letter-spacing: 0; color: var(--mute); }
+html[data-theme] .priority-opt,
+html[data-theme] .postpone-btn { background: var(--seg-bg); border: 1.5px solid transparent; border-radius: 9px; color: var(--sub); }
+html[data-theme] .priority-opt-active { background: var(--seg-active-bg); border-color: var(--seg-active-border); color: var(--seg-active-ink); }
+html[data-theme] .confirm-overlay { background: rgba(0, 0, 0, 0.38); }
+html[data-theme] .confirm-sheet { border-radius: 24px 24px 0 0; border-top: var(--sheet-border); }
+html[data-theme] .confirm-btn-primary { background: var(--fab-from); border: var(--fab-border); color: var(--fab-ink); border-radius: var(--btn-radius); }
+html[data-theme] .confirm-btn-delete,
+html[data-theme] .confirm-btn-cancel { border-radius: var(--btn-radius); }
+html[data-theme] .toast { border-color: var(--row-line); box-shadow: 0 6px 24px rgba(0, 0, 0, 0.18); }
+html[data-theme] .rd-header-side { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; align-self: flex-end; }
+html[data-theme] .timeline-done { white-space: nowrap; }
+html[data-theme] .timeline-label { white-space: nowrap; }
+/* default 用のインライン gap:10px を上書きするため !important（default のマークアップは変えない方針） */
+html[data-theme] .timeline-tools { gap: 6px !important; }
+/* 月カレンダーの当月外セル: 既定の黒の半透明はライトテーマだと重すぎるので、文字色系のごく薄い塗りにする */
+html[data-theme="kami"] .mc-out,
+html[data-theme="cream"] .mc-out { background: rgba(var(--line-rgb), 0.04); }
