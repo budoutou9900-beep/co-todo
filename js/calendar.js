@@ -37,19 +37,19 @@ export function renderWeekStrip(tasks, selectedDate, projects = []) {
     // プロジェクト色のドット（最大3つ、未紐付けはグレー）
     const colors = [...new Set(dayTasks.map((t) => colorForTask(t, projectMap)))].slice(0, 3);
     const dowColor = isToday
-      ? "rgba(149,128,255,0.85)"
+      ? "rgba(var(--accent-rgb),0.85)"
       : wknd
       ? "var(--weekend)"
-      : "rgba(240,240,245,0.32)";
+      : "rgba(var(--text-rgb),0.32)";
     const numClass = isToday ? "week-strip-num today" : "week-strip-num";
-    const numColor = wknd && !isToday ? "var(--weekend)" : "rgba(240,240,245,0.45)";
+    const numColor = wknd && !isToday ? "var(--weekend)" : "rgba(var(--text-rgb),0.45)";
     const dots = colors
       .map(
         (c) => `<div class="week-strip-dot" style="background:${c};opacity:${isToday ? 1 : 0.55}"></div>`
       )
       .join("");
     html += `
-      <div class="week-strip-col" data-date="${dateStr}" style="${isSelected ? "border-radius:10px;background:rgba(255,255,255,0.04)" : ""}">
+      <div class="week-strip-col" data-date="${dateStr}" style="${isSelected ? "border-radius:10px;background:rgba(var(--line-rgb),0.04)" : ""}">
         <div class="week-strip-dow" style="color:${dowColor}">${dow}</div>
         <div class="${numClass}" style="${isToday ? "" : `color:${numColor}`}">${dayNum(dateStr)}</div>
         <div class="week-strip-dots">${dots}</div>
@@ -79,7 +79,7 @@ export function renderMonthCalendar(tasks, eventsByDate = {}, projects = [], mon
   const gridStart = new Date(year, month, 1 - first.getDay());
 
   const head = DOW_HEAD.map((d, i) => {
-    const color = i === 0 ? "var(--weekend)" : i === 6 ? "#6f9bff" : "rgba(240,240,245,0.4)";
+    const color = i === 0 ? "var(--weekend)" : i === 6 ? "var(--saturday)" : "rgba(var(--text-rgb),0.4)";
     return `<div class="mc-dow" style="color:${color}">${d}</div>`;
   }).join("");
 
@@ -92,14 +92,14 @@ export function renderMonthCalendar(tasks, eventsByDate = {}, projects = [], mon
     const isToday = dateStr === today;
     const dow = d.getDay();
     const numColor = isToday
-      ? "#fff"
+      ? "var(--on-fill)"
       : !inMonth
-      ? "rgba(240,240,245,0.22)"
+      ? "rgba(var(--text-rgb),0.22)"
       : dow === 0
       ? "var(--weekend)"
       : dow === 6
-      ? "#6f9bff"
-      : "rgba(240,240,245,0.6)";
+      ? "var(--saturday)"
+      : "rgba(var(--text-rgb),0.6)";
 
     // チップ: Google予定 → タスク の順、最大 MAX_CHIPS
     const evs = (eventsByDate[dateStr] || []).map((ev) => ({
@@ -177,7 +177,7 @@ export function renderWeekView(tasks, weekStart, projects = [], eventsByDate = {
     total += dayTasks.length;
     const isToday = dateStr === today;
     const label = `${dowJp(dateStr)} · ${dayNum(dateStr)}`;
-    const labelColor = isToday ? "rgba(149,128,255,0.85)" : "rgba(240,240,245,0.32)";
+    const labelColor = isToday ? "rgba(var(--accent-rgb),0.85)" : "rgba(var(--text-rgb),0.32)";
     const forecast = weatherByDate[dateStr];
     const umbrellaBadge =
       forecast && forecast.precipProb >= RAIN_THRESHOLD
@@ -193,7 +193,7 @@ export function renderWeekView(tasks, weekStart, projects = [], eventsByDate = {
           <div class="week-event-icon" style="background:rgba(${rgb},0.18)">
             <svg width="10" height="10" viewBox="0 0 22 22" fill="none"><rect x="3" y="5" width="16" height="14" rx="2" stroke="rgb(${rgb})" stroke-width="1.8"/><path d="M3 9h16M8 3v4M14 3v4" stroke="rgb(${rgb})" stroke-width="1.8" stroke-linecap="round"/></svg>
           </div>
-          <div class="week-task-title" style="color:#f0f0f5">${escapeHtml(ev.summary)}</div>
+          <div class="week-task-title" style="color:var(--text)">${escapeHtml(ev.summary)}</div>
         </div>`;
       })
       .join("");
@@ -201,8 +201,8 @@ export function renderWeekView(tasks, weekStart, projects = [], eventsByDate = {
       .map((t) => {
         const color = colorForTask(t, projectMap);
         const titleColor = t.done
-          ? "color:rgba(240,240,245,0.4);text-decoration:line-through"
-          : "color:#f0f0f5";
+          ? "color:rgba(var(--text-rgb),0.4);text-decoration:line-through"
+          : "color:var(--text)";
         const project = t.projectId ? projectMap.get(t.projectId) : null;
         const projLabel = project ? escapeHtml(project.title) : "";
         return `

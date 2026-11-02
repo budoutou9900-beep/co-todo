@@ -31,7 +31,7 @@
       Googleでログイン
     </button>
     <div id="google-signin-btn"></div>
-    <div id="login-error" style="font-size:11.5px;color:rgba(255,120,100,0.85);max-width:320px;word-break:break-word"></div>
+    <div id="login-error" style="font-size:11.5px;color:var(--warn);max-width:320px;word-break:break-word"></div>
   </div>
 
   <!-- app -->
@@ -42,7 +42,7 @@
       </div>
       <div style="display:flex;align-items:center;gap:14px">
         <div id="bulk-add-btn" class="bulk-add-btn" title="AIタスク一括追加">
-          <svg width="17" height="17" viewBox="0 0 22 22" fill="none"><path d="M11 2l1.8 5.2L18 9l-5.2 1.8L11 16l-1.8-5.2L4 9l5.2-1.8L11 2z" stroke="#9580ff" stroke-width="1.5" stroke-linejoin="round"/><path d="M17.5 14v4M15.5 16h4" stroke="#9580ff" stroke-width="1.5" stroke-linecap="round"/></svg>
+          <svg width="17" height="17" viewBox="0 0 22 22" fill="none"><path d="M11 2l1.8 5.2L18 9l-5.2 1.8L11 16l-1.8-5.2L4 9l5.2-1.8L11 2z" style="stroke:var(--accent)" stroke-width="1.5" stroke-linejoin="round"/><path d="M17.5 14v4M15.5 16h4" style="stroke:var(--accent)" stroke-width="1.5" stroke-linecap="round"/></svg>
         </div>
         <span id="signout-btn" class="signout-btn">ログアウト</span>
       </div>
@@ -53,11 +53,11 @@
       <div class="tab-bar-fade"></div>
       <!-- 右上 = タスク追加（紫の浮きボタン） -->
       <div id="open-sheet-btn" class="add-fab">
-        <svg width="20" height="20" viewBox="0 0 18 18" fill="none"><path d="M9 2.5v13M2.5 9h13" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg>
+        <svg width="20" height="20" viewBox="0 0 18 18" fill="none"><path d="M9 2.5v13M2.5 9h13" style="stroke:var(--on-fill)" stroke-width="2" stroke-linecap="round"/></svg>
       </div>
       <!-- その左 = プロジェクト追加（プロジェクトモード時のみ表示） -->
       <div id="add-project-fab" class="add-fab add-project-fab" style="display:none">
-        <svg width="20" height="20" viewBox="0 0 22 22" fill="none"><rect x="3" y="3" width="16" height="6" rx="1.5" stroke="#fff" stroke-width="1.7"/><rect x="3" y="13" width="16" height="6" rx="1.5" stroke="#fff" stroke-width="1.7"/></svg>
+        <svg width="20" height="20" viewBox="0 0 22 22" fill="none"><rect x="3" y="3" width="16" height="6" rx="1.5" style="stroke:var(--on-fill)" stroke-width="1.7"/><rect x="3" y="13" width="16" height="6" rx="1.5" style="stroke:var(--on-fill)" stroke-width="1.7"/></svg>
       </div>
       <div class="tab-bar">
         <div class="tab-item" data-view="today">

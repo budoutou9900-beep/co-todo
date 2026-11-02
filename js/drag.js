@@ -100,7 +100,7 @@ export function attachDragSort(listContainer, getTaskById, rowSelector = ".task-
     el.style.top = rect.top + "px";
     el.style.zIndex = "100";
     el.style.pointerEvents = "none";
-    el.style.boxShadow = "0 8px 28px rgba(0,0,0,0.6)";
+    el.style.boxShadow = "0 8px 28px rgba(var(--shadow-rgb),0.6)";
     // 他の行に同高さのスペースが残るよう、移動した行の場所に
     // 仮プレースホルダーを挿入（同じ高さの透明div）
     const placeholder = document.createElement("div");

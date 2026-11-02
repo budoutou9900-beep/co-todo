@@ -3,7 +3,7 @@ import { hexToRgb, escapeHtml } from "./utils.js";
 const NEUTRAL = "#5a5a72"; // プロジェクト未紐付けタスクの色（薄いグレー）
 
 function checkSvg() {
-  return `<svg width="13" height="11" viewBox="0 0 11 9" fill="none"><path d="M1 4.5l3 3 6-6.5" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="stroke-dasharray:14;animation:checkdraw .35s ease forwards"/></svg>`;
+  return `<svg width="13" height="11" viewBox="0 0 11 9" fill="none"><path d="M1 4.5l3 3 6-6.5" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="stroke:var(--on-fill);stroke-dasharray:14;animation:checkdraw .35s ease forwards"/></svg>`;
 }
 
 // プロジェクトに紐付いていればプロジェクト色、なければグレー
@@ -28,8 +28,8 @@ function renderTaskCard(t, projectMap) {
     ? `background:${color};box-shadow:0 0 12px rgba(${r},${g},${b},0.6)`
     : `border:1.6px solid rgba(${r},${g},${b},0.45)`;
   const titleStyle = t.done
-    ? "color:rgba(240,240,245,0.4);text-decoration:line-through;text-decoration-color:rgba(149,128,255,0.4)"
-    : "color:#f0f0f5";
+    ? "color:rgba(var(--text-rgb),0.4);text-decoration:line-through;text-decoration-color:rgba(var(--accent-rgb),0.4)"
+    : "color:var(--text)";
   const projChip = project
     ? `<span class="task-proj-chip" style="background:rgba(${r},${g},${b},0.16);color:${color}">${escapeHtml(project.title)}</span>`
     : "";
@@ -75,7 +75,7 @@ function renderCalEventCard(ev) {
           <div class="task-check" style="border:none;background:rgba(${rgb},0.16)">
             <svg width="14" height="14" viewBox="0 0 22 22" fill="none"><rect x="3" y="5" width="16" height="14" rx="2" stroke="rgb(${rgb})" stroke-width="1.6"/><path d="M3 9h16M8 3v4M14 3v4" stroke="rgb(${rgb})" stroke-width="1.6" stroke-linecap="round"/></svg>
           </div>
-          <div class="task-title-1line" style="color:#f0f0f5">${escapeHtml(ev.summary)}</div>
+          <div class="task-title-1line" style="color:var(--text)">${escapeHtml(ev.summary)}</div>
           <span class="task-proj-chip" style="background:rgba(${rgb},0.16);color:rgb(${rgb})">${calEventTimeLabel(ev)}</span>
         </div>
       </div>`;

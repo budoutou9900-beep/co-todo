@@ -88,6 +88,10 @@ firebase deploy --only hosting
   `sw.js` がネットワーク優先でも fetch がブラウザのHTTPキャッシュに当たり、デプロイ後最大1時間
   古い `app.js` が動いていた（取り込みリンクをPWAではなくSafari側で開いたときに旧挙動になった）。
   `firebase.json` の `headers` で拡張子ごとに `no-cache`（ETagで再検証）を付けている。
+- **UIの色は直書きせず `css/style.css` の `:root` 変数を経由させる**（着せ替えテーマの前提）。
+  透明度違いは `rgba(var(--text-rgb), 0.4)` のように `--*-rgb`（R, G, B の3値）で書く。JSのインライン
+  styleも同様。SVGの `stroke="…"`/`fill="…"` 属性には `var()` が効かないので `style="stroke:var(--accent)"`
+  と書くこと。プロジェクト色・場所色（`--place-*`）・カレンダー予定色など「データとしての色」は対象外。
 - **`desktop/start.bat` は日本語を書かない（ASCII＋CRLF）**: UTF-8の日本語をcmdがCP932で読み、
   `if` ブロックが壊れて毎回 `npm install` が走っていた。
 

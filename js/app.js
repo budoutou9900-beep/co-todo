@@ -203,8 +203,8 @@ $$(".tab-item").forEach((el) => {
 });
 
 function updateTabBar() {
-  const active = "#9580ff";
-  const idle = "rgba(240,240,245,0.28)";
+  const active = "var(--accent)";
+  const idle = "rgba(var(--text-rgb),0.28)";
   ["today", "week", "projects"].forEach((v) => {
     const isActive = state.view === v;
     $(`#tab-icon-${v}`).style.color = isActive ? active : idle;
@@ -372,7 +372,7 @@ function renderWeekScreen() {
         <div class="eyebrow muted">THIS WEEK</div>
         <div style="display:flex;justify-content:space-between;align-items:flex-end">
           <div class="title-md">${rangeLabel}</div>
-          <div style="font-size:11.5px;color:rgba(240,240,245,0.32)">${total}件</div>
+          <div style="font-size:11.5px;color:rgba(var(--text-rgb),0.32)">${total}件</div>
         </div>
       </div>
       <div class="task-list-scroll scroll" style="padding:0 0 120px">
@@ -397,13 +397,13 @@ function renderProjectCard(p) {
         ? `background:rgba(${r},${g},${b},0.9)`
         : `border:1.3px solid rgba(${r},${g},${b},0.4)`;
       const textStyle = t.done
-        ? `color:rgba(240,240,245,0.4);text-decoration:line-through;text-decoration-color:rgba(${r},${g},${b},0.4)`
-        : "color:rgba(240,240,245,0.78)";
+        ? `color:rgba(var(--text-rgb),0.4);text-decoration:line-through;text-decoration-color:rgba(${r},${g},${b},0.4)`
+        : "color:rgba(var(--text-rgb),0.78)";
       return `
       <div class="subtask-row" data-task-id="${t.id}" data-sort-key="${t.order ?? ""}">
         <div class="subtask-check" style="${checkStyle}">${
         t.done
-          ? '<svg width="8" height="6" viewBox="0 0 9 7" fill="none"><path d="M1 3.5l2.5 2.5L8 .5" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/></svg>'
+          ? '<svg width="8" height="6" viewBox="0 0 9 7" fill="none"><path d="M1 3.5l2.5 2.5L8 .5" style="stroke:var(--on-fill)" stroke-width="1.4" stroke-linecap="round"/></svg>'
           : ""
       }</div>
         <div class="subtask-text" style="${textStyle}">${escapeHtml(t.title)}</div>
@@ -433,7 +433,7 @@ function renderProjectCard(p) {
             <div class="project-stat-label">タスク完了</div>
           </div>
           <div data-edit-project="${p.id}" style="cursor:pointer">
-            <div class="project-due" style="color:${dueWarn ? "var(--warn)" : "rgba(240,240,245,0.65)"}">${
+            <div class="project-due" style="color:${dueWarn ? "var(--warn)" : "rgba(var(--text-rgb),0.65)"}">${
     p.dueDate || "—"
   }</div>
             <div class="project-stat-label">締切</div>
@@ -1227,7 +1227,7 @@ function renderSheet(animate = false) {
   const d = state.sheet.draft;
   const isEdit = !!state.sheet.editingId;
   const projNames = ["なし", ...state.projects.map((p) => p.title)];
-  const projColors = ["rgba(255,255,255,0.25)", ...state.projects.map((p) => p.color)];
+  const projColors = ["rgba(var(--line-rgb),0.25)", ...state.projects.map((p) => p.color)];
   const titleOk = d.title && d.title.trim();
   c.innerHTML = `
     <div class="sheet-overlay${animate ? " animate-in" : ""}">
@@ -1237,7 +1237,7 @@ function renderSheet(animate = false) {
         <div class="sheet-header">
           <div class="sheet-cancel" id="sheet-cancel-btn">キャンセル</div>
           <div class="sheet-title">${isEdit ? "タスクを編集" : "タスクを追加"}</div>
-          <div class="sheet-save" id="sheet-save-btn" style="color:${titleOk ? "#9580ff" : "rgba(149,128,255,0.4)"}">保存</div>
+          <div class="sheet-save" id="sheet-save-btn" style="color:${titleOk ? "var(--accent)" : "rgba(var(--accent-rgb),0.4)"}">保存</div>
         </div>
         <div class="sheet-body">
           <div class="field-title">
@@ -1262,7 +1262,7 @@ function renderSheet(animate = false) {
               <div class="field-box-label">繰り返し</div>
               <div class="field-box-val-sm">${REPEAT_OPTIONS[d.repeatIndex].label}</div>
             </div>
-            <svg width="13" height="13" viewBox="0 0 12 12" fill="none"><path d="M2 6a4 4 0 014-4h2M10 6a4 4 0 01-4 4H4" stroke="rgba(149,128,255,0.6)" stroke-width="1.3" stroke-linecap="round"/><path d="M8 1l2 1.5-2 1.5M4 8L2 9.5 4 11" stroke="rgba(149,128,255,0.6)" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <svg width="13" height="13" viewBox="0 0 12 12" fill="none"><path d="M2 6a4 4 0 014-4h2M10 6a4 4 0 01-4 4H4" style="stroke:rgba(var(--accent-rgb),0.6)" stroke-width="1.3" stroke-linecap="round"/><path d="M8 1l2 1.5-2 1.5M4 8L2 9.5 4 11" style="stroke:rgba(var(--accent-rgb),0.6)" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </div>
           <div class="field-box-label" style="margin:14px 0 6px">優先度</div>
           <div class="priority-toggle">
@@ -1288,7 +1288,7 @@ function wireSheetEvents() {
   const titleInput = $("#draft-title-input");
   titleInput.addEventListener("input", (e) => {
     state.sheet.draft.title = e.target.value;
-    $("#sheet-save-btn").style.color = e.target.value.trim() ? "#9580ff" : "rgba(149,128,255,0.4)";
+    $("#sheet-save-btn").style.color = e.target.value.trim() ? "var(--accent)" : "rgba(var(--accent-rgb),0.4)";
   });
   titleInput.addEventListener("keydown", (e) => {
     // IME変換中のEnter（confirm）は無視する
@@ -1337,7 +1337,7 @@ async function postponeTask(kind) {
 // 一覧から1つ選ぶ体験にするため、タップ巡回方式をやめて選択肢を並べる。
 function openProjectPicker() {
   const projNames = ["なし", ...state.projects.map((p) => p.title)];
-  const projColors = ["rgba(255,255,255,0.25)", ...state.projects.map((p) => p.color)];
+  const projColors = ["rgba(var(--line-rgb),0.25)", ...state.projects.map((p) => p.color)];
   const overlay = document.createElement("div");
   overlay.className = "confirm-overlay";
   const rows = projNames
