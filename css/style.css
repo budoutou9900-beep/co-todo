@@ -648,7 +648,7 @@ html[data-theme] .rd-row .task-check { width: 20px; height: 20px; box-sizing: bo
 html[data-theme] .rd-row[data-priority="extra"] .task-check { border-color: var(--chk-border2, var(--pc)); }
 html[data-theme] .rd-row.rd-done .task-check { border: none; background: var(--chk-fill, var(--pc)); }
 html[data-theme] .rd-row .task-check svg { width: 11px; height: 9px; }
-html[data-theme] .rd-row .task-title-1line { font-size: 14.5px; font-weight: 400; line-height: 1.4; color: var(--text); display: block; white-space: nowrap; text-overflow: ellipsis; -webkit-line-clamp: unset; }
+html[data-theme] .rd-row .task-title-1line { font-size: 14.5px; font-weight: 400; line-height: 1.4; color: var(--text); }
 html[data-theme] .rd-row[data-priority="extra"] .task-title-1line { color: var(--ink2); }
 html[data-theme] .rd-label { display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--label-ink, var(--pc)); white-space: nowrap; flex-shrink: 0; max-width: 40%; overflow: hidden; text-overflow: ellipsis; font-family: 'Geist', 'Noto Sans JP', sans-serif; }
 html[data-theme] .rd-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--pc); flex-shrink: 0; }
@@ -713,7 +713,7 @@ html[data-theme="budou"] .week-task-row:last-child { border-bottom: 1px solid #2
 html[data-theme] .week-task-dot { width: 6px; height: 6px; background: var(--pc); margin: 0 6px; }
 html[data-theme="kami"] .week-task-dot { width: 7px; height: 7px; border-radius: 2px; }
 html[data-theme="cream"] .week-task-dot { width: 7px; height: 7px; }
-html[data-theme] .week-task-title { font-size: 14px; color: var(--ink2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+html[data-theme] .week-task-title { font-size: 14px; line-height: 1.4; color: var(--ink2); min-width: 0; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; word-break: break-word; }
 html[data-theme] .week-task-proj { font-size: 11px; color: var(--label-ink, var(--pc)); }
 html[data-theme] .week-event-row .week-task-title { color: var(--text); }
 html[data-theme] .week-detail-header { padding: 16px var(--label-inset) 6px; }
@@ -752,7 +752,7 @@ html[data-theme] .project-subtasks { margin-top: 14px; padding-top: 6px; border-
 html[data-theme] .subtask-row { min-height: 40px; gap: 11px; }
 html[data-theme] .subtask-check { width: 17px; height: 17px; box-sizing: border-box; border: 1.5px solid var(--chk-border, var(--pc)); }
 html[data-theme] .subtask-row.rd-done .subtask-check { border: none; background: var(--chk-fill, var(--pc)); }
-html[data-theme] .subtask-text { flex: 1; font-size: 13.5px; color: var(--text); }
+html[data-theme] .subtask-text { flex: 1; min-width: 0; font-size: 13.5px; line-height: 1.4; color: var(--text); overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; word-break: break-word; }
 html[data-theme] .subtask-row.rd-done .subtask-text { color: var(--mute); text-decoration: line-through; }
 html[data-theme] .rd-sub-when { font-size: 11px; color: var(--sub); font-family: 'Geist', 'Noto Sans JP', sans-serif; }
 html[data-theme] .add-subtask-btn { margin: 0; padding: 10px 0 2px; border: none; border-radius: 0; text-align: left; font-size: 12.5px; color: var(--accent-link); background: none; }
@@ -866,3 +866,12 @@ html[data-theme] .theme-btn:hover { background: rgba(127, 127, 127, 0.12); }
 .theme-slot-btn { font-size: 12px; padding: 7px 11px; border-radius: 99px; border: 1px solid rgba(var(--line-rgb), 0.14); background: transparent; color: var(--text); cursor: pointer; }
 .theme-slot-del { color: var(--danger); }
 .theme-slot-note { font-size: 11px; color: rgba(var(--text-rgb), 0.45); margin-top: 8px; }
+
+/* 長いタスク名: 行（.task-card）はフレックス子要素で既定の min-width:auto だと、文字幅ぶん広がって
+   枠からはみ出す。min-width:0 で縮められるようにし、2行になったときのために上下に余白を持たせる。
+   各テーマの padding 指定（左右）より後ろに置いて、上下だけ上書きする。 */
+html[data-theme] .rd-row .task-card { min-width: 0; padding-top: 8px; padding-bottom: 8px; }
+html[data-theme] .week-task-row,
+html[data-theme] .subtask-row { padding-top: 7px; padding-bottom: 7px; }
+html[data-theme] .rd-label { max-width: 35%; }
+html[data-theme] .rd-label-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; }

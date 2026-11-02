@@ -55,7 +55,7 @@ function renderTaskCard(t, projectMap) {
 function renderTaskRowRd(t, projectMap, pos = "") {
   const color = themedColor(colorOf(t, projectMap));
   const project = t.projectId ? projectMap.get(t.projectId) : null;
-  const label = project ? `<span class="rd-label"><span class="rd-dot"></span>${escapeHtml(project.title)}</span>` : "";
+  const label = project ? `<span class="rd-label"><span class="rd-dot"></span><span class="rd-label-text">${escapeHtml(project.title)}</span></span>` : "";
   const repeatChip = t.repeat && t.repeat.type !== "none" ? `<span class="task-repeat-icon">↻</span>` : "";
   const priority = t.priority === "extra" ? "extra" : "today";
   return `
