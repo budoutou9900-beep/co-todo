@@ -103,6 +103,9 @@ firebase deploy --only hosting
 - **`--pc`（行ごとのプロジェクト色）を `html[data-theme]` のトークンに入れても効かない**: カスタムプロパティ内の
   `var()` は宣言した要素（html）で解決されるため、`--chk-border: var(--pc)` は無効値になる。プロジェクト色を
   使うトークンは定義せず、ルール側で `var(--chk-border, var(--pc))` のようにフォールバックで書く。
+- **着せ替えの画像は IndexedDB だけに保存し、CSSの背景に `blob:` URL で出している**: CSP の `img-src` に
+  `blob:` が無いと本番だけ画像が出ない（ローカルでは再現しない）。キャラクター画像をリポジトリやHostingに
+  置くのは禁止（サンプル・プレースホルダーとしても）。
 - **`desktop/start.bat` は日本語を書かない（ASCII＋CRLF）**: UTF-8の日本語をcmdがCP932で読み、
   `if` ブロックが壊れて毎回 `npm install` が走っていた。
 

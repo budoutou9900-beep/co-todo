@@ -20,6 +20,7 @@ index.html ── 画面シェル、各種コンテナ（#screen-content, #sheet
        ├─ js/drag.js            ── 長押し/ドラッグによる並び替えの汎用実装
        ├─ js/swipe.js           ── 左スワイプ削除の汎用実装
        ├─ js/themes.js          ── 着せ替えテーマの定義・適用（色はCSS側）
+       ├─ js/theme-images.js    ── 着せ替えの画像スロット（IndexedDB保存・縮小）
        └─ js/utils.js           ── 日付整形・色変換などの共通ユーティリティ
 ```
 
@@ -170,6 +171,16 @@ Open-Meteo APIに直接リクエストする（サーバーを経由しない・
   見た目は `css/style.css` 末尾の `html[data-theme] …` ブロックで決める。テーマ変更時は `requestRender()` で描き直す。
 - 刷新案テーマ用のフォント（Geist / Shippori Mincho / Zen Maru Gothic）は、テーマ適用時にだけ `<link>` を差し込んで読む
   （default のユーザーには余計な読み込みをさせない）。
+- **画像スロット**（`THEMES[id].slots`。現在はクリームの `bg` / `empty` / `done` / `header`）:
+  画像は第三者の著作物になりうるので、Firestore・Storage・リポジトリには置かず、その端末の IndexedDB
+  （DB名 `buto-do-theme`、キー `${uid}:${themeId}:${slotId}`、値は canvas で縮小した Blob。長辺 bg 1600px /
+  他 512px、JPEG以外はPNGで透過を保持）にだけ保存する（[js/theme-images.js](../js/theme-images.js)）。
+  `app.js` の `refreshThemeImages()` がテーマ適用時に読み、object URL を `state.themeImages` に保持して
+  （再描画のたびに作り直さない。差し替え時は `revokeObjectURL`）、`#app-root` に `has-theme-<slot>` クラスと
+  `--theme-<slot>-image` 変数を付ける。表示はCSSだけで行うので `innerHTML` の再描画とは独立している
+  （`empty` は `.empty-state::before`、`header` はロゴを隠して丸アイコン、`bg` は半透明の層を重ねた背景）。
+  `done` だけは完了時に `popDoneImage()` が画像要素を出して1.5秒で消す。スロットを持たないテーマでは何も読まない。
+  object URL を CSS の背景に使うため、CSP の `img-src` に `blob:` を許可している。
 - 起動時のちらつき防止: `applyTheme` が最後のテーマIDを `localStorage`（`buto-do-theme`）にも保存し、
   `index.html` の `<head>` で同期読み込みする `js/theme-boot.js` が描画前に `data-theme` と
   `<meta name="theme-color">` を当てる。CSPでインラインscriptを許可していないので外部ファイル。

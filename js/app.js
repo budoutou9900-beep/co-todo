@@ -1,7 +1,8 @@
 import { watchAuth, signOutUser, renderGoogleSignInButton, signInDesktop } from "./auth.js";
 import { subscribeToTasks, subscribeToProjects, subscribeToAppearance, addTask, updateTask, addProject, updateProject, deleteTask, deleteProject } from "./db.js";
 import { completeTask } from "./tasks.js";
-import { resolveThemeId, applyTheme, isRedesignTheme, themedColor } from "./themes.js";
+import { THEMES, resolveThemeId, applyTheme, isRedesignTheme, themedColor } from "./themes.js";
+import { loadSlotImages } from "./theme-images.js";
 import { renderWeekView, renderMonthCalendar } from "./calendar.js";
 import { renderTodayTimeline, taskSortKey } from "./timeline.js";
 import { attachDragSort, detachDragSort, isDragActive } from "./drag.js";
@@ -54,6 +55,8 @@ const state = {
   unsubProjects: null,
   unsubAppearance: null,
   themeId: "default", // 着せ替えテーマ（js/themes.js）。Firestoreの settings/appearance が真実源
+  // 画像スロットの object URL（{ bg: "blob:…" }）。innerHTML の再描画のたびに作り直さないよう state に持つ
+  themeImages: {},
   calendarConnected: isConnected(),
   calendarEvents: [],
   calendarDate: null,
@@ -119,6 +122,8 @@ watchAuth(async (user) => {
     if (state.unsubTasks) state.unsubTasks();
     if (state.unsubProjects) state.unsubProjects();
     if (state.unsubAppearance) state.unsubAppearance();
+    // 前のユーザーの画像をログイン画面に残さない（uid が無いので空で読み直される＝解除）
+    refreshThemeImages();
     projectsSnapshotReceived = false;
   }
 });
@@ -141,6 +146,43 @@ if (window.desktopAuth?.googleOAuth) {
 
 $("#signout-btn").addEventListener("click", () => signOutUser());
 
+// ---------- 着せ替えの画像スロット ----------
+// 画像は IndexedDB（js/theme-images.js）から読み、object URL を #app-root の CSS変数に渡す。
+// 表示は CSS（#app-root.has-theme-<slot>）に任せるので、innerHTML の再描画とは独立している。
+// スロットを持たないテーマ（default など）では何も読まず、何も表示しない。
+const DISPLAY_SLOTS = ["bg", "empty", "header"]; // done は完了時の演出なので CSS変数を使わない
+async function refreshThemeImages() {
+  const themeId = state.themeId;
+  const uid = state.user?.uid;
+  const slots = THEMES[themeId]?.slots || [];
+  if (!slots.length && !Object.keys(state.themeImages).length) return;
+  const blobs = slots.length && uid ? await loadSlotImages(uid, themeId, slots) : {};
+  // 読み込み中にテーマが切り替わっていたら捨てる
+  if (themeId !== state.themeId) return;
+  Object.values(state.themeImages).forEach((url) => URL.revokeObjectURL(url));
+  state.themeImages = Object.fromEntries(Object.entries(blobs).map(([slot, blob]) => [slot, URL.createObjectURL(blob)]));
+  const root = $("#app-root");
+  for (const slot of DISPLAY_SLOTS) {
+    const url = state.themeImages[slot];
+    root.classList.toggle(`has-theme-${slot}`, !!url);
+    if (url) root.style.setProperty(`--theme-${slot}-image`, `url("${url}")`);
+    else root.style.removeProperty(`--theme-${slot}-image`);
+  }
+}
+
+// タスク完了時、done スロットの画像を画面下から小さく出して1.5秒ほどで消す
+function popDoneImage() {
+  const url = state.themeImages.done;
+  if (!url) return;
+  $(".theme-done-pop")?.remove();
+  const img = document.createElement("img");
+  img.className = "theme-done-pop";
+  img.src = url;
+  img.alt = "";
+  $("#app-root").appendChild(img);
+  img.addEventListener("animationend", () => img.remove());
+}
+
 function startSubscriptions() {
   state.unsubTasks = subscribeToTasks((tasks) => {
     state.tasks = tasks;
@@ -156,6 +198,7 @@ function startSubscriptions() {
   state.unsubAppearance = subscribeToAppearance((themeId) => {
     state.themeId = resolveThemeId(themeId, state.user?.uid);
     applyTheme(state.themeId);
+    refreshThemeImages();
     // テーマによって描画するマークアップ・文言が変わるので描き直す
     requestRender();
   });
@@ -817,6 +860,7 @@ async function toggleTask(taskId) {
   if (!task.done) {
     await completeTask(task);
     flash("完了 — おつかれさま ✦");
+    popDoneImage();
   } else {
     await updateTask(taskId, { done: false });
   }

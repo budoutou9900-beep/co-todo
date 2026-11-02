@@ -490,6 +490,7 @@ body.dragging-task .task-row[data-task-id], body.dragging-task .subtask-row[data
 .app-logo { height: 52px; width: auto; display: block; }
 /* 刷新案テーマのときだけ表示する文字ロゴ（default では出さない） */
 .app-wordmark { display: none; }
+.theme-header-icon { display: none; }
 .signout-btn { font-size: 10.5px; color: rgba(var(--text-rgb), 0.35); cursor: pointer; padding: 4px 8px; }
 
 /* ==========================================================================
@@ -799,3 +800,33 @@ html[data-theme] .timeline-tools { gap: 6px !important; }
 /* 月カレンダーの当月外セル: 既定の黒の半透明はライトテーマだと重すぎるので、文字色系のごく薄い塗りにする */
 html[data-theme="kami"] .mc-out,
 html[data-theme="cream"] .mc-out { background: rgba(var(--line-rgb), 0.04); }
+
+/* ==========================================================================
+   着せ替えの画像スロット（フェーズ3、画像はユーザーが端末から選んだもの）
+   JS（refreshThemeImages）が #app-root に has-theme-<slot> クラスと
+   --theme-<slot>-image（blob: の object URL）を付けたときだけ表示する。
+   未設定のスロットはクラスが付かないので、空枠や壊れた画像アイコンは出ない。
+   ========================================================================== */
+html[data-theme="cream"] { --bg-veil: rgba(250, 240, 202, 0.8); }  /* 背景画像の上に重ねて文字を読みやすくする層 */
+
+/* bg: 画面全体の背景 */
+html[data-theme] #app-root.has-theme-bg { background-image: linear-gradient(var(--bg-veil), var(--bg-veil)), var(--theme-bg-image); background-size: cover; background-position: center; }
+/* 背景画像を見せるため、行の下地（スワイプ時の透け防止用の var(--bg)）を外す箇所 */
+html[data-theme] #app-root.has-theme-bg .done-section-list .rd-row .task-card { background: transparent; }
+
+/* empty: 「該当するタスクはありません」などの上に中央表示（「なし」の小さな空表示は除く） */
+html[data-theme] #app-root.has-theme-empty .empty-state:not(.extra-empty)::before { content: ""; display: block; width: 120px; height: 120px; margin: 0 auto 14px; background: var(--theme-empty-image) center / contain no-repeat; }
+
+/* header: ロゴの代わりに小さな丸アイコン */
+html[data-theme] #app-root.has-theme-header .app-logo { display: none; }
+html[data-theme] #app-root.has-theme-header .theme-header-icon { display: block; width: 32px; height: 32px; border-radius: 50%; background: var(--theme-header-image) center / cover no-repeat; flex-shrink: 0; }
+
+/* done: 完了時に画面下からぴょこっと出て消える */
+.theme-done-pop { position: absolute; left: 50%; bottom: 96px; width: 96px; height: 96px; object-fit: contain; z-index: 85; pointer-events: none; animation: theme-done-pop 1.5s cubic-bezier(.2, .8, .2, 1) forwards; }
+@keyframes theme-done-pop {
+  0% { opacity: 0; transform: translate(-50%, 60px) scale(0.6); }
+  18% { opacity: 1; transform: translate(-50%, -6px) scale(1.05); }
+  28% { transform: translate(-50%, 0) scale(1); }
+  80% { opacity: 1; transform: translate(-50%, 0) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, 20px) scale(0.9); }
+}

@@ -1,4 +1,4 @@
-const CACHE = "task-app-v20";
+const CACHE = "task-app-v21";
 const ASSETS = [
   "./",
   "./index.html",
@@ -16,6 +16,7 @@ const ASSETS = [
   "./js/swipe.js",
   "./js/themes.js",
   "./js/theme-boot.js",
+  "./js/theme-images.js",
   "./js/app.js",
   "./manifest.json",
 ];

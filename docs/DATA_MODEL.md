@@ -47,6 +47,9 @@
 |---|---|---|
 | `themeId` | string | 着せ替えテーマのID（[js/themes.js](../js/themes.js) の `THEMES` のキー）。未設定・未知のID・そのユーザーが選べないテーマのときは `"default"` 扱い |
 
+着せ替えの画像スロットの画像は Firestore には保存しない（端末の IndexedDB のみ。
+[docs/ARCHITECTURE.md](ARCHITECTURE.md) の「着せ替えテーマ」参照）。そのため画像は端末ごとの設定になる。
+
 ## 同期の仕組み
 
 - [js/db.js](../js/db.js) の `subscribeToTasks` / `subscribeToProjects` が `onSnapshot` で

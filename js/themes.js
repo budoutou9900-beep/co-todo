@@ -15,9 +15,10 @@ export const THEMES = {
   sumi: { label: "墨", slots: [], projTone: { s: 0.5, l: 0.68 } },
   kami: { label: "紙", slots: [], projTone: { s: 0.45, l: 0.45 } },
   budou: { label: "葡萄", slots: [], projTone: { s: 0.8, l: 0.72 } },
-  cream: { label: "クリーム", slots: [], projTone: { s: 0.5, l: 0.48 } },
+  // クリームはキャラクターの色から作った案なので画像スロットを持つ（全員が選べる。画像は端末ローカル保存）
+  cream: { label: "クリーム", slots: ["bg", "empty", "done", "header"], projTone: { s: 0.5, l: 0.48 } },
 };
-// キャラクター画像付きテーマを足すときは allowedUids: CHARA_THEME_UIDS を付ける（フェーズ3以降）
+// 特定ユーザー専用にしたいテーマには allowedUids: CHARA_THEME_UIDS を付ける
 
 // theme-boot.js と同じキー。描画前のちらつき防止用のキャッシュ
 const STORAGE_KEY = "buto-do-theme";
