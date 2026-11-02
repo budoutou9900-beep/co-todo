@@ -40,6 +40,131 @@
   --place-transit: #d4a558;
   --warn: rgba(255, 120, 100, 0.85);
   --weekend: rgba(255, 100, 100, 0.42);
+  --fab-ink: var(--on-fill);     /* ＋ボタンのアイコン色 */
+  --fab-shadow: 0 0 24px rgba(var(--accent-rgb), 0.45), 0 4px 14px rgba(var(--shadow-rgb), 0.55);
+}
+
+/* ---------- 着せ替えテーマ ----------
+   js/themes.js の THEMES に対応。<html data-theme="id"> のとき :root の変数を上書きする。
+   各テーマで上書きする変数と用途（色を手で調整するときはここを触る）:
+     --bg / --bg-deep       画面の背景 / 画面外（PCで幅440px超の余白）。ステータスバー色も --bg に合わせる
+     --surface              カード・週ストリップ・月カレンダー・確認シート
+     --surface2             ボトムシート
+     --surface3             シート内の入力欄・切り替えボタン
+     --surface4             タイトル入力欄
+     --text-rgb             文字色（R, G, B）。薄い文字・--muted はこれの半透明
+     --accent-rgb           アクセント（今日の丸・選択中タブ・保存ボタン・選択中の背景）
+     --accent-hi / -hi2     選択中ボタンの文字色
+     --on-fill              アクセント色・プロジェクト色で塗った面の上の文字/チェック
+     --line-rgb             罫線・薄い面（ダークは白系、ライトは文字色系の半透明）
+     --fab-from / -to / -ink / -shadow   ＋ボタンの背景（グラデ両端）・アイコン・影
+     --tabbar-bg / --toast-bg            タブバー・トーストの背景（半透明）
+     --cal-rgb / --weather-rgb / --gold-rgb / --danger-rgb / --danger / --saturday / --weekend / --warn
+                            カレンダーチップ・天気・「余裕があれば」・削除・土日・警告
+   値はデザイン刷新案（Buto-doのデザイン刷新案.zip の README「テーマ別トークン」）から取っている。 */
+
+/* 1a 墨: 無彩色のダーク */
+html[data-theme="sumi"] {
+  --bg: #131211;
+  --bg-deep: #131211;
+  --surface: #1d1c1a;
+  --surface2: #1d1c1a;
+  --surface3: #262422;
+  --surface4: #131211;
+  --text-rgb: 236, 235, 232;
+  --accent-rgb: 236, 235, 232;
+  --accent-hi: #ecebe8;
+  --accent-hi2: #ecebe8;
+  --on-fill: #131211;
+  --fab-from: #ecebe8;
+  --fab-to: #ecebe8;
+  --fab-ink: #131211;
+  --fab-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
+  --tabbar-bg: rgba(19, 18, 17, 0.92);
+  --toast-bg: rgba(29, 28, 26, 0.96);
+  --cal-rgb: 130, 181, 194;
+}
+
+/* 1b 紙: 生成りのライト */
+html[data-theme="kami"] {
+  --bg: #f5f3ee;
+  --bg-deep: #f5f3ee;
+  --surface: #fffefb;
+  --surface2: #fffefb;
+  --surface3: #f5f3ee;
+  --surface4: #f5f3ee;
+  --text-rgb: 29, 28, 26;
+  --accent-rgb: 74, 63, 138;
+  --accent-hi: #4a3f8a;
+  --accent-hi2: #4a3f8a;
+  --on-fill: #fffefb;
+  --line-rgb: 29, 28, 26;
+  --fab-from: #1d1c1a;
+  --fab-to: #1d1c1a;
+  --fab-ink: #f5f3ee;
+  --fab-shadow: 0 6px 16px rgba(29, 28, 26, 0.22);
+  --tabbar-bg: rgba(255, 254, 251, 0.92);
+  --toast-bg: rgba(255, 254, 251, 0.97);
+  --cal-rgb: 47, 120, 137;
+  --weather-rgb: 47, 95, 190;
+  --gold-rgb: 150, 105, 30;
+  --danger-rgb: 196, 60, 60;
+  --danger: #c43c3c;
+  --saturday: #3f6fd8;
+  --weekend: rgba(196, 60, 60, 0.7);
+  --warn: rgba(190, 70, 50, 0.95);
+}
+
+/* 1c 葡萄: 紫みのダーク */
+html[data-theme="budou"] {
+  --bg: #15131a;
+  --bg-deep: #15131a;
+  --surface: #1e1b25;
+  --surface2: #1e1b25;
+  --surface3: #2a2633;
+  --surface4: #15131a;
+  --text-rgb: 239, 237, 243;
+  --accent-rgb: 165, 154, 232;
+  --accent-hi: #b8aef0;
+  --accent-hi2: #b8aef0;
+  --on-fill: #15131a;
+  --fab-from: #8b7cf0;
+  --fab-to: #8b7cf0;
+  --fab-ink: #15131a;
+  --fab-shadow: 0 6px 16px rgba(0, 0, 0, 0.35);
+  --tabbar-bg: rgba(30, 27, 37, 0.92);
+  --toast-bg: rgba(30, 27, 37, 0.96);
+  --cal-rgb: 121, 200, 212;
+}
+
+/* 2a クリーム: キャラクターの体色・ほっぺ・輪郭線から取ったライト */
+html[data-theme="cream"] {
+  --bg: #faf0ca;
+  --bg-deep: #faf0ca;
+  --surface: #fffbea;
+  --surface2: #fffbea;
+  --surface3: #faf0ca;
+  --surface4: #faf0ca;
+  --text-rgb: 42, 36, 32;
+  --accent-rgb: 185, 80, 106;
+  --accent-hi: #b9506a;
+  --accent-hi2: #b9506a;
+  --on-fill: #fffbea;
+  --line-rgb: 42, 36, 32;
+  --fab-from: #fdc1ca;
+  --fab-to: #fdc1ca;
+  --fab-ink: #2a2420;
+  --fab-shadow: none;
+  --tabbar-bg: rgba(255, 251, 234, 0.94);
+  --toast-bg: rgba(255, 251, 234, 0.97);
+  --cal-rgb: 47, 120, 137;
+  --weather-rgb: 47, 95, 190;
+  --gold-rgb: 150, 105, 30;
+  --danger-rgb: 196, 60, 60;
+  --danger: #c43c3c;
+  --saturday: #3f6fd8;
+  --weekend: rgba(196, 60, 60, 0.7);
+  --warn: rgba(190, 70, 50, 0.95);
 }
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -271,7 +396,7 @@ body.dragging-task .task-row[data-task-id], body.dragging-task .subtask-row[data
    本体を角丸ピルにして左右下に余白を持たせ、背景をブラーで透過させる。 */
 .tab-bar-wrap { flex-shrink: 0; position: relative; z-index: 30; }
 .tab-bar-fade { position: absolute; top: -30px; left: 0; right: 0; height: 30px; background: linear-gradient(transparent, var(--bg)); pointer-events: none; }
-.add-fab { position: absolute; right: 24px; top: -60px; width: 50px; height: 50px; border-radius: 50%; background: linear-gradient(140deg, var(--fab-from), var(--fab-to)); display: flex; align-items: center; justify-content: center; box-shadow: 0 0 24px rgba(var(--accent-rgb), 0.45), 0 4px 14px rgba(var(--shadow-rgb), 0.55); animation: floaty 4s ease-in-out infinite; cursor: pointer; }
+.add-fab { position: absolute; right: 24px; top: -60px; width: 50px; height: 50px; border-radius: 50%; background: linear-gradient(140deg, var(--fab-from), var(--fab-to)); display: flex; align-items: center; justify-content: center; box-shadow: var(--fab-shadow); animation: floaty 4s ease-in-out infinite; cursor: pointer; }
 /* プロジェクト追加FAB：タスク追加＋の左隣 */
 .add-project-fab { right: 88px; }
 .tab-bar {

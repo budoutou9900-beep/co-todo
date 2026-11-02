@@ -19,6 +19,7 @@ index.html ── 画面シェル、各種コンテナ（#screen-content, #sheet
        ├─ js/timeline.js        ── 今日タブのタイムラインHTML生成（純関数寄り）
        ├─ js/drag.js            ── 長押し/ドラッグによる並び替えの汎用実装
        ├─ js/swipe.js           ── 左スワイプ削除の汎用実装
+       ├─ js/themes.js          ── 着せ替えテーマの定義・適用（色はCSS側）
        └─ js/utils.js           ── 日付整形・色変換などの共通ユーティリティ
 ```
 
@@ -150,6 +151,21 @@ Google Calendar連携ともFirebase Authとも別の仕組み。OAuthを使わ�
 Geolocation APIで取得した現在地の緯度経度だけを`localStorage`に保存し、APIキー不要の
 Open-Meteo APIに直接リクエストする（サーバーを経由しない・アクセストークンの概念も無い）。
 連携状態（`isConnected()`）も`localStorage`の1フラグのみで管理する点はカレンダー連携と同様。
+
+## 着せ替えテーマ（`js/themes.js`）
+
+- テーマは `THEMES`（`default` と、デザイン刷新案の4案 `sumi`=墨 / `kami`=紙 / `budou`=葡萄 / `cream`=クリーム）。
+  色はJSに持たず、`css/style.css` の `html[data-theme="<id>"]` ブロックで `:root` の変数を上書きする。
+  `default` のときは `data-theme` 属性自体を付けない（テーマ導入前とまったく同じ表示にするため）。
+- UIの色はすべて `:root` 変数経由（直書きしない）。透明度違いは `rgba(var(--text-rgb), α)` のように
+  `--*-rgb` で書く。プロジェクト色・場所色・カレンダー予定色はデータの色なのでテーマで変えない。
+- 選択は Firestore の `users/{uid}/settings/appearance`（`themeId`）が真実源。`app.js` が
+  `subscribeToAppearance` で購読し、`resolveThemeId`（未知のID・対象外ユーザーは `default`）を
+  通して `applyTheme` する。`allowedUids` を持つテーマは、そのUIDのユーザーにしか出さない。
+- 起動時のちらつき防止: `applyTheme` が最後のテーマIDを `localStorage`（`buto-do-theme`）にも保存し、
+  `index.html` の `<head>` で同期読み込みする `js/theme-boot.js` が描画前に `data-theme` と
+  `<meta name="theme-color">` を当てる。CSPでインラインscriptを許可していないので外部ファイル。
+  stylesheet の後に置いているのは、CSS適用済みの `--bg` を読んでステータスバー色を合わせるため。
 
 ## デプロイ・配信
 

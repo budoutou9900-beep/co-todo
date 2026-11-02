@@ -5,6 +5,7 @@ import {
   addDoc,
   updateDoc,
   deleteDoc,
+  setDoc,
   serverTimestamp,
   query,
   orderBy,
@@ -75,4 +76,22 @@ export async function updateProject(projectId, changes) {
 export async function deleteProject(projectId) {
   const ref = doc(db, "users", uid(), "projects", projectId);
   await deleteDoc(ref);
+}
+
+// 見た目の設定（着せ替えテーマ）。端末をまたいで引き継ぐため users/{uid}/settings/appearance に置く。
+// ドキュメントが無い・themeId 未設定のときは null を渡し、読み取り側で default 扱いにする。
+function appearanceRef() {
+  return doc(db, "users", uid(), "settings", "appearance");
+}
+
+export function subscribeToAppearance(callback) {
+  return onSnapshot(appearanceRef(), (snap) => {
+    // キャッシュに無いだけの「存在しない」通知で一瞬 default に戻ってちらつかないよう、サーバー応答を待つ
+    if (!snap.exists() && snap.metadata.fromCache) return;
+    callback(snap.exists() ? snap.data().themeId ?? null : null);
+  });
+}
+
+export async function saveThemeId(themeId) {
+  await setDoc(appearanceRef(), { themeId }, { merge: true });
 }

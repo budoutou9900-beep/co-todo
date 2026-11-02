@@ -39,6 +39,14 @@
 **進捗％は保存しない派生値**: プロジェクトの完了率は `tasks` コレクションから
 `projectId`が一致するものを都度フィルタして算出する（`renderProjectsScreen`内）。
 
+## `users/{uid}/settings/appearance`
+
+見た目の設定。端末をまたいで引き継ぐ（ドキュメントが無ければ全項目デフォルト扱い）。
+
+| フィールド | 型 | 説明 |
+|---|---|---|
+| `themeId` | string | 着せ替えテーマのID（[js/themes.js](../js/themes.js) の `THEMES` のキー）。未設定・未知のID・そのユーザーが選べないテーマのときは `"default"` 扱い |
+
 ## 同期の仕組み
 
 - [js/db.js](../js/db.js) の `subscribeToTasks` / `subscribeToProjects` が `onSnapshot` で

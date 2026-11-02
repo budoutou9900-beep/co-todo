@@ -28,6 +28,10 @@ firebase deploy --only hosting
 
 デプロイ前にコード変更を `git push` すること（デプロイはgit履歴と独立している）。
 
+`python -m http.server` は `Cache-Control` を付けないため、ブラウザが古いJSをヒューリスティックに
+キャッシュし、新しく追加したexportが「does not provide an export named …」で読めないことがある。
+その場合はハードリロード（またはDevToolsの Disable cache）で確認する。
+
 ## アーキテクチャの要点
 
 - **状態管理**: `js/app.js` の単一 `state` オブジェクトで全画面状態を保持。フレームワークは使わず、

@@ -95,6 +95,8 @@ Google Cloud Console 側でリダイレクト先の登録が必要です。
 │   ├── drag.js                長押し/ドラッグによる並び替え
 │   ├── swipe.js               左スワイプ削除
 │   ├── utils.js               日付・場所タグなどの共通ユーティリティ
+│   ├── themes.js              着せ替えテーマの定義・適用
+│   ├── theme-boot.js          起動時に前回のテーマを描画前に当てる（ちらつき防止）
 │   └── app.js                  画面制御・儀式モード・ボトムシート・イベント管理
 └── icons/                PWAアイコン・favicon・ヘッダーロゴ（header-logo.png）
 ```

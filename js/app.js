@@ -1,6 +1,7 @@
 import { watchAuth, signOutUser, renderGoogleSignInButton, signInDesktop } from "./auth.js";
-import { subscribeToTasks, subscribeToProjects, addTask, updateTask, addProject, updateProject, deleteTask, deleteProject } from "./db.js";
+import { subscribeToTasks, subscribeToProjects, subscribeToAppearance, addTask, updateTask, addProject, updateProject, deleteTask, deleteProject } from "./db.js";
 import { completeTask } from "./tasks.js";
+import { resolveThemeId, applyTheme } from "./themes.js";
 import { renderWeekView, renderMonthCalendar } from "./calendar.js";
 import { renderTodayTimeline, taskSortKey } from "./timeline.js";
 import { attachDragSort, detachDragSort, isDragActive } from "./drag.js";
@@ -51,6 +52,8 @@ const state = {
   toastMsg: null,
   unsubTasks: null,
   unsubProjects: null,
+  unsubAppearance: null,
+  themeId: "default", // 着せ替えテーマ（js/themes.js）。Firestoreの settings/appearance が真実源
   calendarConnected: isConnected(),
   calendarEvents: [],
   calendarDate: null,
@@ -115,6 +118,7 @@ watchAuth(async (user) => {
     $("#app-screen").style.display = "none";
     if (state.unsubTasks) state.unsubTasks();
     if (state.unsubProjects) state.unsubProjects();
+    if (state.unsubAppearance) state.unsubAppearance();
     projectsSnapshotReceived = false;
   }
 });
@@ -148,6 +152,10 @@ function startSubscriptions() {
     projectsSnapshotReceived = true;
     requestRender();
     maybeOpenImportModal();
+  });
+  state.unsubAppearance = subscribeToAppearance((themeId) => {
+    state.themeId = resolveThemeId(themeId, state.user?.uid);
+    applyTheme(state.themeId);
   });
 }
 
