@@ -535,7 +535,6 @@ html[data-theme="sumi"] {
   --label-inset: 24px; --list-px: 24px;
   --row-line: rgba(255, 255, 255, 0.07);
   --chk-border: #4d4a46; --chk-border2: #4d4a46; --chk-fill: #ecebe8; --chk-mark: #131211;
-  --label-ink: var(--sub);
   --chip-on-ink: #ecebe8; --chip-on-bg: transparent; --chip-on-border: rgba(255, 255, 255, 0.12); --chip-line: rgba(255, 255, 255, 0.07);
   --prog-bg: transparent; --prog-ink: #8a8782; --prog-pad: 0;
   --seg-bg: #1d1c1a; --seg-active-bg: #2a2826; --seg-active-ink: #ecebe8; --seg-active-border: transparent;
@@ -575,7 +574,6 @@ html[data-theme="budou"] {
   --font-card: inherit; --card-weight: 500;
   --label-inset: 22px; --list-px: 16px;
   --chk-mark: #15131a; /* 枠・塗りはプロジェクト色（--chk-border 等を定義しない＝ルール側で --pc にフォールバック） */
-  --label-ink: var(--sub);
   --chip-on-ink: #79c8d4; --chip-on-bg: #1d2a2e; --chip-on-border: transparent; --chip-line: #2a2633;
   --prog-bg: #221f2a; --prog-ink: #cfcbd8; --prog-pad: 4px 10px;
   --seg-bg: transparent; --seg-active-bg: #efedf3; --seg-active-ink: #15131a; --seg-active-border: transparent;
@@ -644,10 +642,8 @@ html[data-theme] .task-list-pad { padding: 0 var(--list-px) 150px; }
 html[data-theme] .rd-row { margin-bottom: 0; }
 /* 背景を塗っておくのは、スワイプ時に下の削除ボタンが透けないようにするため */
 html[data-theme] .rd-row .task-card { display: flex; align-items: center; gap: 13px; min-height: 50px; padding: 0; border-radius: 0; background: var(--bg); transition: none; }
-/* 未完了の丸は枠を太めにし、内側にプロジェクト色のグラデーションを敷く。枠色がテーマ固定（墨・紙・クリーム）でも
-   どのプロジェクトのタスクか見分けられるようにするため。--pc はトークンに入れられないので直接書く */
-html[data-theme] .rd-row .task-check { width: 20px; height: 20px; box-sizing: border-box; border: 2px solid var(--chk-border, var(--pc)); background: linear-gradient(135deg, color-mix(in srgb, var(--pc) 55%, transparent), color-mix(in srgb, var(--pc) 10%, transparent)); transition: background 0.2s; --on-fill: var(--chk-mark); }
-html[data-theme] .rd-row[data-priority="extra"] .task-check { border-color: var(--chk-border2, var(--pc)); background: linear-gradient(135deg, color-mix(in srgb, var(--pc) 30%, transparent), color-mix(in srgb, var(--pc) 5%, transparent)); }
+html[data-theme] .rd-row .task-check { width: 20px; height: 20px; box-sizing: border-box; border: 2px solid var(--chk-border, var(--pc)); background: transparent; transition: background 0.2s; --on-fill: var(--chk-mark); }
+html[data-theme] .rd-row[data-priority="extra"] .task-check { border-color: var(--chk-border2, var(--pc)); }
 html[data-theme] .rd-row.rd-done .task-check { border: none; background: var(--chk-fill, var(--pc)); }
 html[data-theme] .rd-row .task-check svg { width: 11px; height: 9px; }
 html[data-theme] .rd-row .task-title-1line { font-size: 14.5px; font-weight: 400; line-height: 1.4; color: var(--text); }
@@ -751,7 +747,7 @@ html[data-theme] .project-color-swatch { width: 8px; height: 8px; margin: 0; bac
 html[data-theme] .project-expand-hint { font-size: 11.5px; font-weight: 400; color: var(--sub); }
 html[data-theme] .project-subtasks { margin-top: 14px; padding-top: 6px; border-top: var(--sub-line); gap: 0; }
 html[data-theme] .subtask-row { min-height: 40px; gap: 11px; }
-html[data-theme] .subtask-check { width: 17px; height: 17px; box-sizing: border-box; border: 2px solid var(--chk-border, var(--pc)); background: linear-gradient(135deg, color-mix(in srgb, var(--pc) 55%, transparent), color-mix(in srgb, var(--pc) 10%, transparent)); }
+html[data-theme] .subtask-check { width: 17px; height: 17px; box-sizing: border-box; border: 2px solid var(--chk-border, var(--pc)); }
 html[data-theme] .subtask-row.rd-done .subtask-check { border: none; background: var(--chk-fill, var(--pc)); }
 html[data-theme] .subtask-text { flex: 1; min-width: 0; font-size: 13.5px; line-height: 1.4; color: var(--text); overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; word-break: break-word; }
 html[data-theme] .subtask-row.rd-done .subtask-text { color: var(--mute); text-decoration: line-through; }
