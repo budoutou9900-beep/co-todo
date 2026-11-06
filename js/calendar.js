@@ -11,6 +11,7 @@ import {
 } from "./utils.js";
 import { RAIN_THRESHOLD } from "./weather-sync.js";
 import { isRedesignTheme, themedColor } from "./themes.js";
+import { rdCalIcon } from "./timeline.js";
 
 const NEUTRAL = "#5a5a72";
 const EVENT_COLOR_FALLBACK = "#6b7a99"; // カレンダー色が取得できない場合のフォールバック
@@ -253,7 +254,7 @@ function renderWeekViewRd(tasks, dayOrder, projectMap, eventsByDate, weatherByDa
       .map(
         (ev) => `
         <div class="week-task-row week-event-row" style="cursor:default;--pc:${ev.color ? themedColor(ev.color) : "var(--cal)"}">
-          <div class="rd-cal-bar"></div>
+          ${rdCalIcon()}
           <div class="week-task-title">${escapeHtml(ev.summary)}</div>
         </div>`
       )

@@ -70,12 +70,18 @@ function renderTaskRowRd(t, projectMap, pos = "") {
       </div>`;
 }
 
+// 刷新案テーマの予定マーク。縦棒だとタスクの丸と並んだときに予定だと分かりにくかったので、
+// デフォルトテーマと同じカレンダーアイコンにした（色は --pc、SVG属性には var() が効かないので style で指定）
+export function rdCalIcon() {
+  return `<div class="rd-cal-icon"><svg width="12" height="12" viewBox="0 0 22 22" fill="none"><rect x="3" y="5" width="16" height="14" rx="2" stroke-width="1.9" style="stroke:var(--pc)"/><path d="M3 9h16M8 3v4M14 3v4" stroke-width="1.9" stroke-linecap="round" style="stroke:var(--pc)"/></svg></div>`;
+}
+
 function renderCalEventRowRd(ev, pos = "") {
   const color = ev.color ? themedColor(ev.color) : "var(--cal)";
   return `
       <div class="task-row cal-event-row rd-row${pos}" data-sort-key="${calSortKey(ev)}" data-priority="today" style="cursor:default">
         <div class="task-card task-card-1line" style="--pc:${color}">
-          <div class="rd-cal-bar"></div>
+          ${rdCalIcon()}
           <div class="task-title-1line">${escapeHtml(ev.summary)}</div>
           <span class="rd-label">${calEventTimeLabel(ev)}</span>
         </div>

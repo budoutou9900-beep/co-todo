@@ -644,8 +644,10 @@ html[data-theme] .task-list-pad { padding: 0 var(--list-px) 150px; }
 html[data-theme] .rd-row { margin-bottom: 0; }
 /* 背景を塗っておくのは、スワイプ時に下の削除ボタンが透けないようにするため */
 html[data-theme] .rd-row .task-card { display: flex; align-items: center; gap: 13px; min-height: 50px; padding: 0; border-radius: 0; background: var(--bg); transition: none; }
-html[data-theme] .rd-row .task-check { width: 20px; height: 20px; box-sizing: border-box; border: 1.5px solid var(--chk-border, var(--pc)); background: transparent; transition: background 0.2s; --on-fill: var(--chk-mark); }
-html[data-theme] .rd-row[data-priority="extra"] .task-check { border-color: var(--chk-border2, var(--pc)); }
+/* 未完了の丸は枠を太めにし、内側にプロジェクト色のグラデーションを敷く。枠色がテーマ固定（墨・紙・クリーム）でも
+   どのプロジェクトのタスクか見分けられるようにするため。--pc はトークンに入れられないので直接書く */
+html[data-theme] .rd-row .task-check { width: 20px; height: 20px; box-sizing: border-box; border: 2px solid var(--chk-border, var(--pc)); background: linear-gradient(135deg, color-mix(in srgb, var(--pc) 55%, transparent), color-mix(in srgb, var(--pc) 10%, transparent)); transition: background 0.2s; --on-fill: var(--chk-mark); }
+html[data-theme] .rd-row[data-priority="extra"] .task-check { border-color: var(--chk-border2, var(--pc)); background: linear-gradient(135deg, color-mix(in srgb, var(--pc) 30%, transparent), color-mix(in srgb, var(--pc) 5%, transparent)); }
 html[data-theme] .rd-row.rd-done .task-check { border: none; background: var(--chk-fill, var(--pc)); }
 html[data-theme] .rd-row .task-check svg { width: 11px; height: 9px; }
 html[data-theme] .rd-row .task-title-1line { font-size: 14.5px; font-weight: 400; line-height: 1.4; color: var(--text); }
@@ -656,7 +658,7 @@ html[data-theme="kami"] .rd-dot { width: 7px; height: 7px; border-radius: 2px; }
 html[data-theme="cream"] .rd-dot { width: 7px; height: 7px; }
 html[data-theme="budou"] .rd-label .rd-dot { display: none; }
 html[data-theme] .cal-event-row .rd-label { color: var(--sub); }
-html[data-theme] .rd-cal-bar { width: 3px; height: 18px; border-radius: 2px; background: var(--pc); flex-shrink: 0; margin: 0 8.5px; }
+html[data-theme] .rd-cal-icon { width: 20px; height: 20px; border-radius: 6px; background: color-mix(in srgb, var(--pc) 16%, transparent); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 html[data-theme] .task-repeat-icon { color: var(--faint); }
 html[data-theme] .reorder-mode .drag-handle { color: var(--faint); }
 
@@ -676,7 +678,7 @@ html[data-theme="cream"] .rd-row[data-priority="extra"].rd-last .task-card { bor
 html[data-theme="budou"] .rd-row { margin-bottom: 6px; }
 html[data-theme="budou"] .rd-row .task-card { background: #1e1b25; border-radius: 12px; padding: 0 14px; }
 html[data-theme="budou"] .rd-row[data-priority="extra"] .task-card { background: var(--bg); border: 1px solid #25212d; }
-html[data-theme="budou"] .rd-row .task-check { border-width: 1.6px; }
+html[data-theme="budou"] .rd-row .task-check { border-width: 2.2px; }
 
 /* 余裕があれば・完了済み */
 html[data-theme] .extra-section-header { margin: 22px 0 8px; padding: 0 calc(var(--label-inset) - var(--list-px)); }
@@ -710,9 +712,8 @@ html[data-theme="sumi"] .week-task-row:last-child { border-bottom: 1px solid var
 html[data-theme="budou"] .week-group-card { display: flex; flex-direction: column; gap: 6px; }
 html[data-theme="budou"] .week-task-row { border: 1px solid #25212d; border-radius: 12px; padding: 0 14px; }
 html[data-theme="budou"] .week-task-row:last-child { border-bottom: 1px solid #25212d; }
-html[data-theme] .week-task-dot { width: 6px; height: 6px; background: var(--pc); margin: 0 6px; }
-html[data-theme="kami"] .week-task-dot { width: 7px; height: 7px; border-radius: 2px; }
-html[data-theme="cream"] .week-task-dot { width: 7px; height: 7px; }
+html[data-theme] .week-task-dot { width: 8px; height: 8px; background: var(--pc); margin: 0 6px; box-shadow: 0 0 0 3px color-mix(in srgb, var(--pc) 22%, transparent); }
+html[data-theme="kami"] .week-task-dot { border-radius: 2px; }
 html[data-theme] .week-task-title { font-size: 14px; line-height: 1.4; color: var(--ink2); min-width: 0; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; word-break: break-word; }
 html[data-theme] .week-task-proj { font-size: 11px; color: var(--label-ink, var(--pc)); }
 html[data-theme] .week-event-row .week-task-title { color: var(--text); }
@@ -750,7 +751,7 @@ html[data-theme] .project-color-swatch { width: 8px; height: 8px; margin: 0; bac
 html[data-theme] .project-expand-hint { font-size: 11.5px; font-weight: 400; color: var(--sub); }
 html[data-theme] .project-subtasks { margin-top: 14px; padding-top: 6px; border-top: var(--sub-line); gap: 0; }
 html[data-theme] .subtask-row { min-height: 40px; gap: 11px; }
-html[data-theme] .subtask-check { width: 17px; height: 17px; box-sizing: border-box; border: 1.5px solid var(--chk-border, var(--pc)); }
+html[data-theme] .subtask-check { width: 17px; height: 17px; box-sizing: border-box; border: 2px solid var(--chk-border, var(--pc)); background: linear-gradient(135deg, color-mix(in srgb, var(--pc) 55%, transparent), color-mix(in srgb, var(--pc) 10%, transparent)); }
 html[data-theme] .subtask-row.rd-done .subtask-check { border: none; background: var(--chk-fill, var(--pc)); }
 html[data-theme] .subtask-text { flex: 1; min-width: 0; font-size: 13.5px; line-height: 1.4; color: var(--text); overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; word-break: break-word; }
 html[data-theme] .subtask-row.rd-done .subtask-text { color: var(--mute); text-decoration: line-through; }
